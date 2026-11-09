@@ -41,3 +41,12 @@ example
 # generated native folders
 /ios
 /android
+
+# Local configuration
+.env
+
+# Cloud Functions: configuration and secret overrides
+functions/.env*
+functions/.secret*
+!functions/.env.example
+firebase-debug.log*
