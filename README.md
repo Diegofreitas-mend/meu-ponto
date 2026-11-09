@@ -1,56 +1,66 @@
-# Welcome to your Expo app 👋
+# Meu Ponto
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicativo React Native com Expo e Firebase para consultar os pontos de ônibus.
 
-## Get started
+**Comece pelo [GUIA_DA_EQUIPE.md](GUIA_DA_EQUIPE.md).** Ele explica onde editar cada tela e o caminho dos dados.
 
-1. Install dependencies
+## Rodar
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```powershell
+npm.cmd install
+npm.cmd start
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+Para navegador: `npm.cmd run web`. Configure o Firebase no `.env.local`, seguindo [docs/firebase.md](docs/firebase.md).
 
-### Other setup steps
+## Organização simplificada
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```text
+src/
+  app/                 Telas e navegação
+    index.tsx          Entrada: reutiliza a tela de login
+    login.tsx          Formulário e ação de login
+    cadastro.tsx       Formulário e ação de cadastro
+    recuperar-senha.tsx Recuperação com código e nova senha
+    (tabs)/
+      inicio.tsx       Pontos de ônibus após entrar
+      perfil.tsx       Perfil e saída da conta
+      mapa.tsx         Em breve
+      avaliacao.tsx    Em breve
+      alertas.tsx      Em breve
+  styles.ts            Estilos de todas as telas, separados em blocos
+  tema.ts              Cores, tamanhos e identidade visual
+  firebase.ts          Configuração do banco e autenticação
+  recuperacao.ts       Chamadas de recuperação ao backend
+  sessao.tsx           Usuário conectado compartilhado entre as telas
+  pontos.ts            Consulta, busca e carregamento dos pontos
+  validacoes.ts        Conferência dos formulários e dados do banco
+  tipos.ts             Formato dos dados em TypeScript
+  expo.d.ts            Tipos de suporte do Expo
+  components/          Campo de senha e aviso Em breve
+```
 
-## Learn more
+Os dois arquivos `_layout.tsx` definem a navegação geral e a barra inferior. Eles substituem a configuração de navegação que normalmente ficaria no App.js.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Conferir antes de entregar
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```powershell
+npm.cmd run lint
+npm.cmd run typecheck
+npm.cmd run test:data
+npm.cmd --prefix functions test
+```
 
-## Join the community
+## Outros arquivos
 
-Join our community of developers creating universal apps.
+- `assets/`: logo e imagens.
+- `docs/`: [identidade visual](docs/brand/README.md) e configuração do Firebase.
+- `firebase/firestore.rules`: regras do banco.
+- `functions/`: backend separado para enviar códigos por e-mail e redefinir senhas.
+- `tests/`: testes das validações.
+- `node_modules/`, `.expo/` e `dist/`: arquivos gerados pelas ferramentas.
+- `_backup-projeto-local-2026-11-09/`: histórico local preservado, ignorado pelo Git.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Início, login, cadastro e Perfil estão implementados. Mapa, Avaliar e Alertas continuam com o aviso Em breve. Os dados da tela inicial vêm do Firestore; não há dados simulados no app.
+
+A recuperação por código está implementada e precisa da configuração do Resend e do deploy das Cloud Functions para enviar e-mails reais. Siga [docs/recuperacao-senha.md](docs/recuperacao-senha.md).
