@@ -1,0 +1,11 @@
+{
+  "functions": [{
+    "source": "functions",
+    "codebase": "password-recovery",
+    "ignore": ["node_modules", "tests", ".env*", "*.local", "firebase-debug.log"],
+    "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run check", "npm --prefix \"$RESOURCE_DIR\" test"]
+  }],
+  "firestore": {
+    "rules": "firebase/firestore.rules"
+  }
+}

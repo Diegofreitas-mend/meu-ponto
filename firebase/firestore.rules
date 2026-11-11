@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /stops/{stopId} {
+      // O documento inteiro será público. Não inclua dados pessoais aqui.
+      allow read: if resource.data.published == true;
+      // Cadastros administrativos são feitos pelo Console nesta etapa.
+      allow write: if false;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
