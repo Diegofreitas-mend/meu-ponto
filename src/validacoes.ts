@@ -49,6 +49,20 @@ function strings(value: unknown): string[] {
   if (!Array.isArray(value) || value.some(item => typeof item !== 'string')) throw new Error('Lista inválida no Firestore.');
   return [...new Set(value as string[])];
 }
+function coordinates(id: string, value: Record<string, unknown>): { latitude: number | null; longitude: number | null } {
+  const geo = value.location && typeof value.location === 'object' ? (value.location as Record<string, unknown>) : null;
+  const rawLat = value.latitude ?? geo?.latitude ?? null;
+  const rawLng = value.longitude ?? geo?.longitude ?? null;
+  if (rawLat === null && rawLng === null) return { latitude: null, longitude: null };
+  if (
+    typeof rawLat !== 'number' || !Number.isFinite(rawLat) || rawLat < -90 || rawLat > 90 ||
+    typeof rawLng !== 'number' || !Number.isFinite(rawLng) || rawLng < -180 || rawLng > 180
+  ) {
+    throw new Error(`Coordenadas inválidas no ponto ${id}.`);
+  }
+  return { latitude: rawLat, longitude: rawLng };
+}
+
 export function parseStopDocument(id: string, value: Record<string, unknown>): BusStop {
   const rating = value.rating ?? null;
   const reviews = value.reviewCount ?? 0;
@@ -56,6 +70,7 @@ export function parseStopDocument(id: string, value: Record<string, unknown>): B
     throw new Error(`Nota ou quantidade de avaliações inválida no ponto ${id}.`);
   }
   if (value.condition !== undefined && !['unknown', 'good'].includes(String(value.condition))) throw new Error(`Condição inválida no ponto ${id}.`);
+  const { latitude, longitude } = coordinates(id, value);
   const rawAlerts = value.alerts ?? [];
   if (!Array.isArray(rawAlerts)) throw new Error(`Alertas inválidos no ponto ${id}.`);
   const alerts = rawAlerts.map((item: unknown, index) => {
@@ -66,6 +81,6 @@ export function parseStopDocument(id: string, value: Record<string, unknown>): B
     return { id: `${id}-${index}`, title: text(alert.title, 'alerts.title'), message: text(alert.message, 'alerts.message'), createdAt };
   });
   return { id, name: text(value.name, 'name'), address: text(value.address, 'address'), city: text(value.city, 'city'),
-    rating, reviews, tags: strings(value.tags), lines: strings(value.lines), alerts,
+    latitude, longitude, rating, reviews, tags: strings(value.tags), lines: strings(value.lines), alerts,
     status: alerts.length ? 'alert' : value.condition === 'good' ? 'good' : 'unknown' };
 }

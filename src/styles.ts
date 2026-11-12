@@ -1,8 +1,8 @@
-// Altere a aparência das telas aqui. Cada bloco corresponde a uma tela.
+﻿// Altere a apar├¬ncia das telas aqui. Cada bloco corresponde a uma tela.
 import { StyleSheet } from 'react-native';
 import { Brand, colors } from '@/tema';
 
-// ----- INÍCIO -----
+// ----- IN├ìCIO -----
 export const homeStyles = StyleSheet.create({
   root: {
     flex: 1,
@@ -711,7 +711,7 @@ export const placeholderStyles = StyleSheet.create({
   },
 });
 
-// ----- RECUPERAÇÃO DE SENHA -----
+// ----- RECUPERA├ç├âO DE SENHA -----
 export const recoveryStyles = StyleSheet.create({
   icon: {
     width: 64,
@@ -923,6 +923,456 @@ export const welcomeStyles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  
+});
+
+// ----- TELA DE ALERTAS (DADOS MOCKADOS) -----
+export const alertStyles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
+    paddingBottom: 32,
+  },
+  hero: {
+    backgroundColor: colors.primary,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    paddingBottom: 52,
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logo: {
+    width: 172,
+    height: 64,
+  },
+  heroIntro: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  title: {
+    fontSize: 30,
+    lineHeight: 38,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.8,
+  },
+  subtitle: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#E7EEFF',
+    marginTop: 8,
+  },
+  body: {
+    paddingHorizontal: 22,
+  },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#D6E1F1',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingLeft: 16,
+    marginTop: -28,
+    minHeight: 58,
+    gap: 10,
+  },
+  input: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 14,
+    color: colors.text,
+    minHeight: 56,
+    paddingVertical: 14,
+  },
+  clear: {
+    minWidth: 48,
+    minHeight: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  grow: {
+    flex: 1,
+    minWidth: 0,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  caption: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    marginTop: 3,
+  },
+  card: {
+    backgroundColor: '#E9F1FF',
+    borderRadius: 22,
+    padding: 20,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#DCE8FC',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  busIcon: {
+    width: 48,
+    height: 50,
+    borderRadius: 15,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  city: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    marginBottom: 3,
+  },
+  stopName: {
+    fontSize: 19,
+    lineHeight: 26,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  address: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: colors.textSecondary,
+    marginTop: 14,
+  },
+  alertInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 18,
+  },
+  alertTitle: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '600',
+    color: colors.warning,
+    flex: 1,
+  },
+  alertMessage: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: colors.textSecondary,
+    marginTop: 8,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#C9DCF5',
+    marginTop: 18,
+    paddingTop: 14,
+  },
+  date: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.textSecondary,
+  },
+  empty: {
+    padding: 24,
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 18,
+    backgroundColor: '#F3F7FE',
+  },
+  emptyTitle: {
+    fontSize: 18,
+    lineHeight: 26,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  actionButton: {
+    minHeight: 48,
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  actionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  mockNotice: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 16,
+  },
+});
+// ----- MAPA -----
+export const mapStyles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  canvas: {
+    flex: 1,
+  },
+  overlayTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  topContainer: {
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#D6E1F1',
+    paddingLeft: 14,
+    minHeight: 52,
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 14,
+    color: colors.text,
+    minHeight: 48,
+  },
+  clearButton: {
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filtersRow: {
+    gap: 8,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 48,
+    paddingHorizontal: 14,
+    borderRadius: Brand.radius.pill,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DCE8FC',
+  },
+  chipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  chipTextActive: {
+    color: '#FFFFFF',
+  },
+  controlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+    gap: 8,
+  },
+  legend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 12,
+    backgroundColor: '#FFFFFFF2',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#DCE8FC',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  locateButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DCE8FC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overlayBottom: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 16,
+    zIndex: 10,
+  },
+  bottomContainer: {
+    width: '100%',
+    maxWidth: 680,
+    alignSelf: 'center',
+    gap: 10,
+  },
+  noticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFFF5',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#DCE8FC',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  noticeText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.textSecondary,
+  },
+  sheetCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#DCE8FC',
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  sheetAddress: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  sheetActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#C9DCF5',
+  },
+  primarySmallButton: {
+    minHeight: 48,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  primarySmallText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  webMapWrapper: {
+    flex: 1,
+    backgroundColor: '#E9F1FF',
+  },
+  webPinsStrip: {
+    position: 'absolute',
+    top: 175,
+    left: 16,
+    right: 16,
+    zIndex: 9,
+  },
+  webPinPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 48,
+    paddingHorizontal: 14,
+    borderRadius: Brand.radius.pill,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: Brand.colors.green,
+    marginRight: 8,
+  },
+  webPinPillSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  webPinText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  webPinTextSelected: {
     color: '#FFFFFF',
   },
 });
