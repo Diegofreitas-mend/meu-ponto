@@ -3,6 +3,8 @@ export type BusStop = {
   name: string;
   address: string;
   city: string;
+  latitude: number | null;
+  longitude: number | null;
   rating: number | null;
   reviews: number;
   status: 'good' | 'alert' | 'unknown';
