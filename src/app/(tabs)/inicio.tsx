@@ -1,37 +1,182 @@
-// Tela inicial: conteúdo e ações ficam aqui; aparência em src/styles.ts.
+
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  observarAlertasAvaliacoes,
+  observarResumoAvaliacoes,
+  type AlertaAvaliacao,
+  type ResumoAvaliacoes,
+} from '@/avaliacoes';
 import { useStops } from '@/pontos';
 import { homeStyles as styles } from '@/styles';
 import { colors } from '@/tema';
 import type { BusStop } from '@/tipos';
 
 type StopFilter = 'all' | 'accessible' | 'covered' | 'alerts';
+
+type ResumoProps = {
+  pontoId: string;
+  modal?: boolean;
+};
+
 const filters = [
   { id: 'all', label: 'Todos', icon: 'grid-outline' },
   { id: 'accessible', label: 'Acessível', icon: 'accessibility-outline' },
   { id: 'covered', label: 'Com cobertura', icon: 'umbrella-outline' },
   { id: 'alerts', label: 'Com alertas', icon: 'alert-circle-outline' },
 ] as const;
-const normalizeTag = (tag: string) => tag.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
-const ratingLabel = (stop: BusStop) => stop.rating === null ? 'Sem avaliações' : stop.rating.toFixed(1).replace('.', ',');
+const normalizeTag = (tag: string) =>
+  tag.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
+function ResumoDoPonto({ pontoId, modal = false }: ResumoProps) {
+  const [resultado, setResultado] = useState<{
+    pontoId: string;
+    resumo: ResumoAvaliacoes | null;
+    erro: boolean;
+  }>({
+    pontoId,
+    resumo: null,
+    erro: false,
+  });
+
+  useEffect(() => {
+    const cancelar = observarResumoAvaliacoes(
+      pontoId,
+      resumo => setResultado({ pontoId, resumo, erro: false }),
+      () => setResultado({ pontoId, resumo: null, erro: true }),
+    );
+
+    return cancelar;
+  }, [pontoId]);
+
+  const atual = resultado.pontoId === pontoId ? resultado : null;
+  const resumo = atual?.resumo;
+  const erro = atual?.erro;
+
+  if (modal) {
+    let texto = 'Carregando avaliações...';
+
+    if (erro) texto = 'Avaliações indisponíveis';
+    else if (resumo && resumo.quantidade === 0) {
+      texto = 'Sem avaliações';
+    } else if (resumo && resumo.media !== null) {
+      const media = resumo.media.toFixed(1).replace('.', ',');
+      const quantidade = resumo.quantidade;
+      const palavra = quantidade === 1 ? 'avaliação' : 'avaliações';
+
+      texto = `${media} · ${quantidade} ${palavra}`;
+    }
+
+    return (
+      <View style={styles.modalInfo}>
+        <Ionicons name="star-outline" size={20} color={colors.primary} />
+        <Text style={styles.modalText}>{texto}</Text>
+      </View>
+    );
+  }
+
+  if (erro) {
+    return <Text style={styles.reviewNote}>Avaliações indisponíveis</Text>;
+  }
+
+  if (!resumo) {
+    return <Text style={styles.reviewNote}>Carregando avaliações...</Text>;
+  }
+
+  if (resumo.media === null) {
+    return <Text style={styles.reviewNote}>Ainda sem avaliações</Text>;
+  }
+
+  const media = resumo.media.toFixed(1).replace('.', ',');
+  const quantidade = resumo.quantidade;
+  const palavra = quantidade === 1 ? 'avaliação' : 'avaliações';
+
+  return (
+    <View style={styles.rating}>
+      <Ionicons name="star" size={14} color={colors.warning} />
+      <Text style={styles.ratingText}>{media}</Text>
+      <Text style={styles.ratingText}>
+        · {quantidade} {palavra}
+      </Text>
+    </View>
+  );
+}
 
 export default function HomeScreen() {
-  // A consulta usa somente documentos publicados no Firebase, sem dados fictícios.
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<StopFilter>('all');
   const [selected, setSelected] = useState<BusStop | null>(null);
+  const [reviewAlerts, setReviewAlerts] = useState<
+    Record<string, AlertaAvaliacao[]>
+  >({});
+  const [reviewErrors, setReviewErrors] = useState<string[]>([]);
   const { stops, loading, error, reload } = useStops(query);
+
+  const stopIds = useMemo(
+    () => JSON.stringify(stops.map(stop => stop.id).sort()),
+    [stops],
+  );
+
+  useEffect(() => {
+    const ids: string[] = JSON.parse(stopIds);
+    let ativo = true;
+
+    setReviewAlerts({});
+    setReviewErrors([]);
+
+    const cancelar = ids.map(pontoId =>
+      observarAlertasAvaliacoes(
+        pontoId,
+        alertas => {
+          if (!ativo) return;
+
+          setReviewAlerts(current => ({
+            ...current,
+            [pontoId]: alertas,
+          }));
+
+          setReviewErrors(current =>
+            current.filter(id => id !== pontoId),
+          );
+        },
+        () => {
+          if (!ativo) return;
+
+          setReviewErrors(current =>
+            current.includes(pontoId)
+              ? current
+              : [...current, pontoId],
+          );
+        },
+      ),
+    );
+
+    return () => {
+      ativo = false;
+      cancelar.forEach(parar => parar());
+    };
+  }, [stopIds]);
+
   const visibleStops = stops.filter(stop => {
     if (filter === 'accessible') return stop.tags.some(tag => normalizeTag(tag) === 'acessivel');
     if (filter === 'covered') return stop.tags.some(tag => normalizeTag(tag) === 'com cobertura');
-    if (filter === 'alerts') return stop.alerts.length > 0;
+    if (filter === 'alerts') return stop.alerts.length > 0 || (reviewAlerts[stop.id]?.length ?? 0) > 0;
     return true;
   });
+
   const total = visibleStops.length;
   const alerts = visibleStops.flatMap(stop => stop.alerts.map(alert => ({ stop, alert })));
 
@@ -41,8 +186,16 @@ export default function HomeScreen() {
     return { text: 'Estrutura não informada', color: colors.textSecondary, background: colors.iconSurface };
   }
 
+  function abrirAvaliacao(pontoId: string) {
+    setSelected(null);
+    router.navigate({ pathname: '/avaliacao', params: { pontoId } });
+  }
+
   function renderStop(stop: BusStop) {
     const condition = status(stop);
+    const relatos = reviewAlerts[stop.id] ?? [];
+    const quantidade = relatos.length;
+
     return (
       <Pressable key={stop.id} accessibilityRole="button" accessibilityLabel={`Ver ponto ${stop.name}`}
         accessibilityHint={`${stop.city}. ${condition.text}. Abre os detalhes do ponto.`}
@@ -53,12 +206,20 @@ export default function HomeScreen() {
             <Text style={styles.city}>{stop.city}</Text>
             <Text style={styles.stopName}>{stop.name}</Text>
           </View>
-          {stop.rating !== null && <View style={styles.rating}>
-            <Ionicons name="star" size={14} color={colors.warning} /><Text style={styles.ratingText}>{ratingLabel(stop)}</Text>
-          </View>}
         </View>
         <Text style={styles.address}>{stop.address}</Text>
-        {stop.rating === null && <Text style={styles.reviewNote}>Ainda sem avaliações</Text>}
+        <ResumoDoPonto pontoId={stop.id} />
+        {quantidade > 0 && (
+          <View style={styles.modalInfo}>
+            <Ionicons name="alert-circle-outline" size={18} color={colors.warning} />
+            <Text style={styles.modalText}>
+              {quantidade} {quantidade === 1 ? 'relato de problema' : 'relatos de problemas'}
+            </Text>
+          </View>
+        )}
+        {reviewErrors.includes(stop.id) && (
+          <Text style={styles.reviewNote}>Relatos indisponíveis</Text>
+        )}
         {stop.lines.length > 0 && <View style={styles.lines}>
           <Text style={styles.lineLabel}>Linhas</Text>
           {stop.lines.slice(0, 3).map(line => <Text key={line} style={styles.lineNumber}>{line}</Text>)}
@@ -140,7 +301,7 @@ export default function HomeScreen() {
           {!loading && !error && visibleStops.length > 0 && <>
             {alerts.length > 0 ? <>
               <View style={styles.sectionHead}><Text style={styles.sectionTitle}>Relatos da comunidade</Text></View>
-              {alerts.map(({ stop, alert }) => <Pressable key={alert.id} accessibilityRole="button" accessibilityLabel={`Ver relato sobre ${stop.name}`} onPress={() => setSelected(stop)} style={({ pressed }) => [styles.alertCard, pressed && styles.pressed]}>
+              {alerts.map(({ stop, alert }) => <Pressable key={`${stop.id}-${alert.id}`} accessibilityRole="button" accessibilityLabel={`Ver relato sobre ${stop.name}`} onPress={() => setSelected(stop)} style={({ pressed }) => [styles.alertCard, pressed && styles.pressed]}>
                 <View style={styles.row}><Ionicons name="alert-circle-outline" size={20} color={colors.warning} /><Text style={styles.alertTitle}>{alert.title}</Text></View>
                 <Text style={styles.alertText}>{alert.message}</Text>
                 <View style={styles.alertFooter}><Text style={styles.alertPlace}>{stop.name}</Text><Text style={styles.alertDate}>{new Date(alert.createdAt).toLocaleDateString('pt-BR')}</Text></View>
@@ -158,10 +319,46 @@ export default function HomeScreen() {
               <Pressable accessibilityRole="button" accessibilityLabel="Fechar detalhes" onPress={() => setSelected(null)} style={styles.clear}><Ionicons name="close" size={24} color={colors.text} /></Pressable>
             </View>
             <Text style={styles.address}>{selected.address} · {selected.city}</Text>
-            <View style={styles.modalInfo}><Ionicons name="star-outline" size={20} color={colors.primary} /><Text style={styles.modalText}>{ratingLabel(selected)}{selected.reviews > 0 ? ` · ${selected.reviews} avaliações` : ''}</Text></View>
+            <ResumoDoPonto pontoId={selected.id} modal />
             <Text style={styles.modalText}>Linhas: {selected.lines.length ? selected.lines.join(' · ') : 'Não informadas'}</Text>
             {selected.tags.length > 0 && <View style={styles.tags}>{selected.tags.map(tag => <Text key={tag} style={styles.tag}>{tag}</Text>)}</View>}
-            {selected.alerts.map(alert => <View key={alert.id} style={styles.alertCard}><Text style={styles.alertTitle}>{alert.title}</Text><Text style={styles.alertText}>{alert.message}</Text></View>)}
+
+            {selected.alerts.map(alert => (
+              <View key={`original-${alert.id}`} style={styles.alertCard}>
+                <Text style={styles.alertTitle}>{alert.title}</Text>
+                <Text style={styles.alertText}>{alert.message}</Text>
+              </View>
+            ))}
+
+            {(reviewAlerts[selected.id] ?? []).length > 0 && (
+              <Text style={styles.modalText}>
+                Relatos das avaliações
+              </Text>
+            )}
+
+            {(reviewAlerts[selected.id] ?? []).map(alert => (
+              <View key={`avaliacao-${alert.id}`} style={styles.alertCard}>
+                <View style={styles.row}>
+                  <Ionicons name="alert-circle-outline" size={20} color={colors.warning} />
+                  <Text style={styles.alertTitle}>{alert.title}</Text>
+                </View>
+                <Text style={styles.alertText}>{alert.message}</Text>
+                <Text style={styles.alertDate}>
+                  {new Date(alert.createdAt).getTime() === 0
+                    ? 'Data não disponível'
+                    : new Date(alert.createdAt).toLocaleDateString('pt-BR')}
+                </Text>
+              </View>
+            ))}
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Avaliar ${selected.name}`}
+              onPress={() => abrirAvaliacao(selected.id)}
+              style={styles.actionButton}
+            >
+              <Text style={styles.actionText}>Avaliar este ponto</Text>
+            </Pressable>
           </>}</ScrollView>
         </View></View>
       </Modal>
