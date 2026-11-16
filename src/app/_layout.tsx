@@ -3,12 +3,14 @@ import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { useSincronizarUsuario } from '@/admin';
 import { AuthProvider, useAuth } from '@/sessao';
 import { welcomeStyles as styles } from '@/styles';
 import { colors } from '@/tema';
 
 function AppNavigation() {
   const { user, ready } = useAuth();
+  useSincronizarUsuario();
   useEffect(() => { if (ready) void SplashScreen.hideAsync(); }, [ready]);
   if (!ready) return <View style={styles.loading}><ActivityIndicator color={colors.primary} accessibilityLabel="Restaurando sessão" /></View>;
   return (

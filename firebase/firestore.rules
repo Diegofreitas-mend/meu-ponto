@@ -4,9 +4,51 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function adminsIniciais() { return ['mauroavpaz@gmail.com']; }
+    function ehAdminInicial(email) { return email is string && email.lower() in adminsIniciais(); }
+    function caminhoAdmin(uid) { return /databases/$(database)/documents/admins/$(uid); }
+    function caminhoUsuario(uid) { return /databases/$(database)/documents/usuarios/$(uid); }
+    function admin() {
+      return request.auth != null && (
+        ehAdminInicial(request.auth.token.get('email', null))
+        || exists(caminhoAdmin(request.auth.uid)));
+    }
+    function bloqueado(uid) {
+      return exists(caminhoUsuario(uid)) && get(caminhoUsuario(uid)).data.status == 'bloqueado';
+    }
+    function textoPonto(valor, max) {
+      return valor is string && valor.size() >= 2 && valor.size() <= max;
+    }
+    function coordenadasValidas(lat, lng) {
+      return (lat == null && lng == null)
+        || (lat is number && lng is number && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180);
+    }
+    function pontoValido(d) {
+      return textoPonto(d.name, 120)
+        && textoPonto(d.address, 200)
+        && textoPonto(d.city, 80)
+        && coordenadasValidas(d.get('latitude', null), d.get('longitude', null))
+        && d.get('lines', []) is list && d.get('lines', []).size() <= 30
+        && d.get('tags', []) is list && d.get('tags', []).size() <= 10
+        && d.published is bool
+        && d.get('condition', 'unknown') in ['unknown', 'good'];
+    }
+    function camposPainel() {
+      return ['name', 'address', 'city', 'latitude', 'longitude', 'lines', 'tags', 'published', 'condition', 'updatedAt'];
+    }
+
     match /stops/{stopId} {
-      allow read: if resource.data.published == true;
-      allow write: if false;
+      allow read: if resource.data.published == true || admin();
+      allow create: if admin()
+        && request.resource.data.keys().hasOnly(camposPainel().concat(['createdAt']))
+        && pontoValido(request.resource.data)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if admin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(camposPainel())
+        && pontoValido(request.resource.data)
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
 
       match /reviews/{userId} {
 
@@ -64,10 +106,50 @@ service cloud.firestore {
           && tagsValidas(request.resource.data.tags)
           && request.resource.data.description is string
           && request.resource.data.description.size() <= 500
-          && request.resource.data.createdAt == request.time;
+          && request.resource.data.createdAt == request.time
+          && !bloqueado(userId);
 
         allow update, delete: if false;
       }
+    }
+
+    function nomeValido(valor) { return valor is string && valor.size() <= 80; }
+    match /usuarios/{uid} {
+      allow get: if (request.auth != null && request.auth.uid == uid) || admin();
+      allow list: if admin();
+      allow create: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['nome', 'email', 'status', 'createdAt', 'updatedAt'])
+        && nomeValido(request.resource.data.nome)
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.status == 'ativo'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if (request.auth != null && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'email', 'updatedAt'])
+          && nomeValido(request.resource.data.nome)
+          && request.resource.data.email == request.auth.token.email
+          && request.resource.data.updatedAt == request.time)
+        || (admin() && request.auth.uid != uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+          && request.resource.data.status in ['ativo', 'bloqueado']
+          && !ehAdminInicial(resource.data.email)
+          && !exists(caminhoAdmin(uid))
+          && request.resource.data.updatedAt == request.time);
+      allow delete: if false;
+    }
+
+    match /admins/{uid} {
+      allow get: if (request.auth != null && request.auth.uid == uid) || admin();
+      allow list: if admin();
+      allow create: if admin()
+        && request.resource.data.keys().hasOnly(['email', 'concedidoPor', 'createdAt'])
+        && exists(caminhoUsuario(uid))
+        && get(caminhoUsuario(uid)).data.status == 'ativo'
+        && request.resource.data.email == get(caminhoUsuario(uid)).data.email
+        && request.resource.data.concedidoPor == request.auth.uid
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if admin() && request.auth.uid != uid;
     }
 
     match /{document=**} {

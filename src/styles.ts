@@ -1544,3 +1544,196 @@ export const avaliacaoStyles = StyleSheet.create({
     color: colors.onPrimary,
   },
 });
+
+export const adminStyles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
+    padding: 20,
+    paddingBottom: 48,
+    gap: 12,
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    backgroundColor: colors.background,
+  },
+  title: {
+    ...Brand.typography.title,
+    color: colors.text,
+  },
+  subtitle: {
+    ...Brand.typography.body,
+    color: colors.textSecondary,
+  },
+  section: {
+    ...Brand.typography.subtitle,
+    color: colors.text,
+    marginTop: 12,
+  },
+  card: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+    padding: 16,
+    gap: 8,
+  },
+  cardPressed: {
+    opacity: 0.8,
+  },
+  cardTitle: {
+    ...Brand.typography.label,
+    fontSize: 16,
+    color: colors.text,
+  },
+  cardText: {
+    ...Brand.typography.caption,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textSecondary,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  menuIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.iconSurface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+  },
+  spread: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  badge: {
+    borderRadius: Brand.radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: colors.iconSurface,
+  },
+  badgeText: {
+    ...Brand.typography.caption,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  badgeSuccess: {
+    backgroundColor: colors.successSurface,
+  },
+  badgeWarning: {
+    backgroundColor: colors.warningSurface,
+  },
+  badgeDanger: {
+    backgroundColor: colors.dangerSurface,
+  },
+  label: {
+    ...Brand.typography.label,
+    color: colors.text,
+    marginTop: 4,
+  },
+  hint: {
+    ...Brand.typography.caption,
+    color: colors.textSecondary,
+  },
+  input: {
+    minHeight: Brand.control.minHeight,
+    borderRadius: Brand.radius.input,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
+    color: colors.text,
+    fontSize: 16,
+  },
+  inputDisabled: {
+    backgroundColor: colors.disabled,
+    color: colors.onDisabled,
+  },
+  button: {
+    minHeight: 48,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonText: {
+    ...Brand.typography.label,
+    color: colors.onPrimary,
+  },
+  secondary: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryText: {
+    ...Brand.typography.label,
+    color: colors.primary,
+  },
+  danger: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dangerText: {
+    ...Brand.typography.label,
+    color: colors.danger,
+  },
+  chip: {
+    borderRadius: Brand.radius.pill,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  chipOn: {
+    borderColor: colors.primary,
+    backgroundColor: colors.iconSurface,
+  },
+  chipText: {
+    ...Brand.typography.caption,
+    fontSize: 14,
+    color: colors.text,
+  },
+  error: {
+    ...Brand.typography.body,
+    fontSize: 14,
+    color: colors.danger,
+  },
+  success: {
+    ...Brand.typography.body,
+    fontSize: 14,
+    color: colors.success,
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+});
