@@ -7,6 +7,7 @@ import type { BusStop } from '@/tipos';
 export type MapRegion = Region;
 
 export type MapaCanvasProps = {
+  searchLocation?: { latitude: number; longitude: number; nome: string } | null;
   stops: BusStop[];
   selectedStop: BusStop | null;
   region: MapRegion;
@@ -14,7 +15,7 @@ export type MapaCanvasProps = {
   onSelectStop: (stop: BusStop) => void;
 };
 
-export function MapaCanvas({ stops, selectedStop, region, showsUserLocation, onSelectStop }: MapaCanvasProps) {
+export function MapaCanvas({ stops, selectedStop, region, showsUserLocation, onSelectStop, searchLocation }: MapaCanvasProps) {
   const mapRef = useRef<MapView | null>(null);
 
   useEffect(() => {
@@ -29,6 +30,7 @@ export function MapaCanvas({ stops, selectedStop, region, showsUserLocation, onS
       showsUserLocation={showsUserLocation}
       showsMyLocationButton={false}
     >
+      {searchLocation && <Marker coordinate={searchLocation} title={searchLocation.nome} pinColor={Brand.colors.blue} />}
       {stops.map(stop => {
         if (stop.latitude === null || stop.longitude === null) return null;
         const isSelected = selectedStop?.id === stop.id;

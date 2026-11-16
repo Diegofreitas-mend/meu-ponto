@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { buscarLugares, type Lugar } from '@/busca';
 import * as Location from 'expo-location';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Keyboard, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MapaCanvas, type MapRegion } from '@/components/MapaCanvas';
 import { useStops } from '@/pontos';
@@ -37,7 +39,54 @@ export default function MapScreen() {
   const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationDenied, setLocationDenied] = useState(false);
 
-  const { stops, loading, error, reload } = useStops(query);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [places, setPlaces] = useState<Lugar[]>([]);
+  const [place, setPlace] = useState<Lugar | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const request = useRef<AbortController | null>(null);
+  const navigated = useRef(false);
+  useEffect(() => () => { request.current?.abort(); request.current = null; }, []);
+  const { stops, loading, error, reload } = useStops(place ? '' : query);
+
+  function changeQuery(value: string) {
+    request.current?.abort();
+    request.current = null;
+    navigated.current = true;
+    setQuery(value); setPlace(null); setPlaces([]); setSelected(null);
+    setSearchError(null); setSearching(false); setSearchOpen(!!value.trim());
+  }
+
+  async function searchAddresses() {
+    if (query.trim().length < 3) {
+      setSearchError('Digite pelo menos 3 caracteres para buscar um endereço.');
+      setSearchOpen(true); return;
+    }
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
+    setSearching(true); setSearchError(null); setSearchOpen(true);
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+      const results = await buscarLugares(query.trim(), controller.signal);
+      if (request.current !== controller) return;
+      setPlaces(results);
+      if (!results.length) setSearchError('Nenhum endereço encontrado. Inclua o nome da rua ou bairro.');
+    } catch {
+      if (request.current === controller) setSearchError('Não foi possível buscar endereços. Tente novamente.');
+    } finally {
+      clearTimeout(timeout);
+      if (request.current === controller) setSearching(false);
+    }
+  }
+
+  function selectPlace(result: Lugar) {
+    request.current?.abort(); request.current = null;
+    navigated.current = true; setSearching(false);
+    setPlace(result); setSelected(null); setSearchOpen(false); Keyboard.dismiss();
+    setRegion({ latitude: result.latitude, longitude: result.longitude, latitudeDelta: 0.015, longitudeDelta: 0.015 });
+  }
+
 
   const filteredStops = stops.filter(stop => {
     if (filter === 'accessible') return stop.tags.some(tag => normalizeTag(tag) === 'acessivel');
@@ -67,7 +116,7 @@ export default function MapScreen() {
         if (!active) return;
         const coords = { latitude: current.coords.latitude, longitude: current.coords.longitude };
         setUserCoords(coords);
-        setRegion({ ...coords, latitudeDelta: 0.025, longitudeDelta: 0.025 });
+        if (!navigated.current) setRegion({ ...coords, latitudeDelta: 0.025, longitudeDelta: 0.025 });
       } catch {
         if (active) setLocationDenied(true);
       }
@@ -77,6 +126,9 @@ export default function MapScreen() {
   }, []);
 
   function handleSelectStop(stop: BusStop) {
+    navigated.current = true;
+    request.current?.abort(); request.current = null;
+    setSearching(false); setSearchOpen(false); Keyboard.dismiss();
     setSelected(stop);
     if (stop.latitude !== null && stop.longitude !== null) {
       setRegion({
@@ -89,6 +141,9 @@ export default function MapScreen() {
   }
 
   function centerOnUser() {
+    navigated.current = true;
+    request.current?.abort(); request.current = null; setSearching(false);
+    setSelected(null); setPlace(null); setSearchOpen(false);
     if (userCoords) {
       setRegion({ ...userCoords, latitudeDelta: 0.02, longitudeDelta: 0.02 });
     } else {
@@ -102,11 +157,12 @@ export default function MapScreen() {
     return { text: 'Estrutura não informada', color: colors.textSecondary, background: colors.iconSurface };
   }
 
-  const activeStop = selected && mappedStops.some(stop => stop.id === selected.id) ? selected : null;
+  const activeStop = selected ? filteredStops.find(stop => stop.id === selected.id) ?? null : null;
 
   return (
     <View style={styles.root}>
       <MapaCanvas
+        searchLocation={place}
         stops={mappedStops}
         selectedStop={activeStop}
         region={region}
@@ -123,16 +179,53 @@ export default function MapScreen() {
               placeholder="Buscar ponto, rua ou bairro"
               placeholderTextColor={colors.textSecondary}
               value={query}
-              onChangeText={setQuery}
+              onChangeText={changeQuery}
+              onFocus={() => setSearchOpen(!!query.trim())}
+              returnKeyType="search"
+              onSubmitEditing={() => void searchAddresses()}
               maxLength={200}
               style={styles.searchInput}
             />
             {query.length > 0 && (
-              <Pressable accessibilityRole="button" accessibilityLabel="Limpar busca" onPress={() => setQuery('')} style={styles.clearButton}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Limpar busca" onPress={() => changeQuery('')} style={styles.clearButton}>
                 <Ionicons name="close" size={20} color={colors.textSecondary} />
               </Pressable>
             )}
+            <Pressable accessibilityRole="button" accessibilityLabel="Pesquisar endereço" onPress={() => void searchAddresses()} style={styles.clearButton}>
+              {searching ? <ActivityIndicator color={colors.primary} /> : <Ionicons name="arrow-forward" size={22} color={colors.primary} />}
+            </Pressable>
           </View>
+
+          {searchOpen && (
+            <View style={styles.searchResults}>
+              <View style={styles.sheetHeader}>
+                <Text style={styles.resultTitle}>Resultados da busca</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel="Fechar resultados" style={styles.clearButton} onPress={() => setSearchOpen(false)}>
+                  <Ionicons name="close" size={20} color={colors.textSecondary} />
+                </Pressable>
+              </View>
+              <ScrollView style={{ maxHeight: 210 }} keyboardShouldPersistTaps="handled">
+                {filteredStops.slice(0, 6).map(stop => (
+                  <Pressable key={stop.id} accessibilityRole="button" onPress={() => handleSelectStop(stop)} style={styles.resultRow}>
+                    <Ionicons name="bus-outline" size={20} color={colors.primary} />
+                    <View style={homeStyles.grow}><Text style={styles.resultTitle}>{stop.name}</Text><Text style={styles.sheetAddress}>{stop.address}{stop.latitude === null ? ' · Sem localização no mapa' : ''}</Text></View>
+                  </Pressable>
+                ))}
+                {places.map(result => (
+                  <Pressable key={result.id} accessibilityRole="button" onPress={() => selectPlace(result)} style={styles.resultRow}>
+                    <Ionicons name="location-outline" size={20} color={colors.primary} />
+                    <View style={homeStyles.grow}><Text style={styles.resultTitle}>{result.nome}</Text><Text style={styles.sheetAddress}>{result.endereco}</Text>{result.aviso && <Text style={styles.sheetAddress}>{result.aviso}</Text>}</View>
+                  </Pressable>
+                ))}
+                {!loading && !filteredStops.length && <Text style={styles.sheetAddress}>Nenhum ponto cadastrado corresponde à busca. Pesquise o endereço para explorar a região.</Text>}
+                {searchError && <Text accessibilityRole="alert" style={styles.sheetAddress}>{searchError}</Text>}
+              </ScrollView>
+              <Pressable accessibilityRole="button" disabled={searching} onPress={() => void searchAddresses()} style={styles.resultRow}>
+                <Ionicons name="search-outline" size={20} color={colors.primary} /><Text style={styles.resultTitle}>{searching ? 'Buscando endereços…' : 'Buscar rua ou bairro em Fortaleza'}</Text>
+              </Pressable>
+              <Text style={styles.noticeText}>Endereços: Photon / © OpenStreetMap</Text>
+            </View>
+          )}
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersRow}>
             {filters.map(item => (
@@ -174,13 +267,14 @@ export default function MapScreen() {
         </View>
       </SafeAreaView>
 
-      <View pointerEvents="box-none" style={styles.overlayBottom}>
+      <View pointerEvents="box-none" style={[styles.overlayBottom, searchOpen && { display: 'none' }]}>
         <View style={styles.bottomContainer}>
+          {place && <View style={styles.noticeBanner}><Ionicons name="location" size={18} color={colors.primary} /><Text style={styles.noticeText}>{place.aviso ? `${place.aviso} ` : ''}Região de {place.nome}. Os pontos exibidos são os cadastrados no Meu Ponto.</Text></View>}
           {locationDenied && (
             <View style={styles.noticeBanner}>
               <Ionicons name="location-outline" size={18} color={colors.primary} />
               <Text style={styles.noticeText}>
-                Localização não autorizada. Exibindo o mapa de Fortaleza para consulta manual.
+                Localização não autorizada. Use a busca para explorar o mapa.
               </Text>
             </View>
           )}
@@ -201,18 +295,18 @@ export default function MapScreen() {
             </View>
           )}
 
-          {!loading && !error && mappedStops.length === 0 && (
+          {!loading && !error && mappedStops.length === 0 && !searchOpen && !activeStop && (
             <View style={styles.sheetCard}>
               <Text style={styles.sheetTitle}>Nenhum ponto geolocalizado encontrado</Text>
               <Text style={styles.sheetAddress}>
                 {unmappedCount > 0
-                  ? `Existem ${unmappedCount} ponto(s) cadastrado(s) sem latitude e longitude no banco.`
+                  ? `${unmappedCount} ponto(s) encontrado(s) ainda sem localização no mapa. Você pode selecioná-los pela busca para ver detalhes e avaliar.`
                   : 'Tente remover os filtros ou buscar por outro bairro.'}
               </Text>
               {(query.trim() || filter !== 'all') && (
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => { setQuery(''); setFilter('all'); }}
+                  onPress={() => { changeQuery(''); setFilter('all'); }}
                   style={[homeStyles.actionButton, { marginTop: 12 }]}
                 >
                   <Text style={homeStyles.actionText}>Limpar filtros</Text>
@@ -241,6 +335,9 @@ export default function MapScreen() {
                   </Pressable>
                 </View>
 
+                <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/avaliacao', params: { pontoId: activeStop.id } })} style={[homeStyles.actionButton, { marginTop: 12 }]}>
+                  <Text style={homeStyles.actionText}>Avaliar este ponto</Text>
+                </Pressable>
                 <View style={styles.sheetActions}>
                   <View style={[homeStyles.badge, { backgroundColor: condition.background }]}>
                     <View style={[homeStyles.statusDot, { backgroundColor: condition.color }]} />

@@ -5,12 +5,15 @@ import type { MapaCanvasProps } from './MapaCanvas';
 import { mapStyles as styles } from '@/styles';
 import { Brand } from '@/tema';
 
-export function MapaCanvas({ stops, selectedStop, region, onSelectStop }: MapaCanvasProps) {
+export function MapaCanvas({ stops, selectedStop, region, onSelectStop, searchLocation }: MapaCanvasProps) {
   const lat = selectedStop?.latitude ?? region.latitude;
   const lng = selectedStop?.longitude ?? region.longitude;
-  const delta = selectedStop ? 0.008 : 0.04;
-  const bbox = `${lng - delta}%2C${lat - delta}%2C${lng + delta}%2C${lat + delta}`;
-  const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
+  const dx = region.longitudeDelta / 2;
+  const dy = region.latitudeDelta / 2;
+  const bbox = `${lng - dx}%2C${lat - dy}%2C${lng + dx}%2C${lat + dy}`;
+  const hasStopLocation = selectedStop?.latitude != null && selectedStop?.longitude != null;
+  const marker = hasStopLocation || (!selectedStop && searchLocation) ? `&marker=${lat}%2C${lng}` : '';
+  const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik${marker}`;
 
   return (
     <View style={styles.webMapWrapper}>

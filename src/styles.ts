@@ -429,6 +429,17 @@ export const homeStyles = StyleSheet.create({
 
 // ----- PERFIL -----
 export const profileStyles = StyleSheet.create({
+  subtitle: { fontSize: 15, lineHeight: 23, color: colors.textSecondary, marginBottom: 24 },
+  sectionTitle: { fontSize: 17, fontWeight: '700', color: colors.text, marginTop: 28, marginBottom: 12 },
+  info: { backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.cardBorder, padding: 18, gap: 18, marginTop: 16 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 48 },
+  grow: { flex: 1, minWidth: 0 },
+  label: { fontSize: 12, color: colors.textSecondary, marginBottom: 4 },
+  value: { fontSize: 15, color: colors.text, lineHeight: 22 },
+  action: { backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.cardBorder, padding: 16, marginBottom: 10 },
+  actionIcon: { width: 44, height: 44, backgroundColor: colors.iconSurface, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  initials: { fontSize: 28, fontWeight: '700', color: colors.primary },
+  footer: { fontSize: 12, color: colors.textSecondary, textAlign: 'center', lineHeight: 20, marginTop: 24, marginBottom: 24 },
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -1144,6 +1155,9 @@ export const alertStyles = StyleSheet.create({
 });
 // ----- MAPA -----
 export const mapStyles = StyleSheet.create({
+  searchResults: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: colors.cardBorder, padding: 12, marginTop: 6 },
+  resultRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.cardBorder },
+  resultTitle: { fontSize: 14, fontWeight: '600', color: colors.text, flexShrink: 1 },
   root: {
     flex: 1,
     backgroundColor: colors.background,
@@ -1379,6 +1393,13 @@ export const mapStyles = StyleSheet.create({
 
 // ----- AVALIAÇÃO -----
 export const avaliacaoStyles = StyleSheet.create({
+  linha: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
+  trocar: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 12, marginLeft: 'auto' },
+  link: { color: colors.primary, fontWeight: '600', fontSize: 14 },
+  secao: { padding: 20, borderRadius: 20, backgroundColor: colors.surface, borderColor: colors.cardBorder, borderWidth: 1, marginBottom: 16 },
+  opcaoPonto: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.cardBorder, padding: 16, borderRadius: 16, marginBottom: 10 },
+  iconePonto: { backgroundColor: colors.card, width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  nomeOpcao: { fontSize: 16, fontWeight: '600', color: colors.text },
   areaSegura: {
     flex: 1,
     backgroundColor: colors.background,

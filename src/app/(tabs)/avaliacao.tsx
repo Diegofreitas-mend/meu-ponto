@@ -4,6 +4,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -288,11 +290,13 @@ function FormularioAvaliacao({ pontoId }: PropsFormulario) {
       edges={["top", "left", "right"]}
       style={estilos.areaSegura}
     >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={estilos.containerGeral}
       >
-        <Text style={estilos.tituloCabecalho}>Adicionar avaliação</Text>
+        <Text style={estilos.rotuloPonto}>SUA VOZ MELHORA O CAMINHO</Text>
+        <Text style={estilos.tituloCabecalho}>Avaliar um ponto</Text>
 
         <Text style={estilos.subtitulo}>
           Conte como foi sua experiência neste ponto de ônibus.
@@ -330,15 +334,20 @@ function FormularioAvaliacao({ pontoId }: PropsFormulario) {
         ) : (
           <>
             <View style={estilos.cartaoPonto}>
-              <Text style={estilos.rotuloPonto}>Ponto selecionado</Text>
+              <View style={estilos.linha}>
+                <Ionicons name="bus-outline" size={24} color={Brand.themes.light.primary} />
+                <Text style={estilos.rotuloPonto}>01 · Ponto selecionado</Text>
+                <Pressable accessibilityRole="button" onPress={() => router.setParams({ pontoId: '' })} style={estilos.trocar}><Text style={estilos.link}>Trocar</Text></Pressable>
+              </View>
               <Text style={estilos.nomePonto}>{ponto.name}</Text>
               <Text style={estilos.enderecoPonto}>
                 {ponto.address} · {ponto.city}
               </Text>
             </View>
 
+            <View style={estilos.secao}>
             <Text style={estilos.tituloCampo}>
-              Qual nota você dá para este ponto?
+              02 · Qual nota você dá para este ponto?
             </Text>
 
             <View style={estilos.containerEstrelas}>
@@ -363,11 +372,13 @@ function FormularioAvaliacao({ pontoId }: PropsFormulario) {
 
             <Text style={estilos.textoNota}>
               {nota
-                ? `${nota} de 5 estrelas`
+                ? `${["", "Muito ruim", "Ruim", "Regular", "Bom", "Excelente"][nota]} · ${nota} de 5 estrelas`
                 : "Toque nas estrelas para avaliar"}
             </Text>
 
-            <Text style={estilos.tituloCampo}>Tags (opcional)</Text>
+            </View>
+            <View style={estilos.secao}>
+            <Text style={estilos.tituloCampo}>03 · O que você encontrou?</Text>
             <Text style={estilos.ajudaCampo}>
               Selecione até 5 características deste ponto.
             </Text>
@@ -382,8 +393,10 @@ function FormularioAvaliacao({ pontoId }: PropsFormulario) {
               {tags.length}/{limiteTags} tags selecionadas
             </Text>
 
+            </View>
+            <View style={estilos.secao}>
             <Text style={estilos.tituloCampo}>
-              Descrição da avaliação (opcional)
+              04 · Conte um pouco mais (opcional)
             </Text>
 
             <TextInput
@@ -404,6 +417,8 @@ function FormularioAvaliacao({ pontoId }: PropsFormulario) {
               {descricao.length}/500 caracteres
             </Text>
 
+            </View>
+            {nota === 0 && <Text style={estilos.ajudaCampo}>Escolha uma nota para liberar o envio. Tags e comentário são opcionais.</Text>}
             {verificando && (
               <ActivityIndicator
                 color={Brand.themes.light.primary}
@@ -416,10 +431,10 @@ function FormularioAvaliacao({ pontoId }: PropsFormulario) {
                 <Text style={estilos.aviso}>{erroVerificacao}</Text>
                 <Pressable
                   style={estilos.botaoVoltar}
-                  onPress={() => setTentativa((valor) => valor + 1)}
+                  onPress={() => user ? setTentativa((valor) => valor + 1) : router.push("/login")}
                   accessibilityRole="button"
                 >
-                  <Text style={estilos.textoVoltar}>Tentar novamente</Text>
+                  <Text style={estilos.textoVoltar}>{user ? "Tentar novamente" : "Entrar para avaliar"}</Text>
                 </Pressable>
               </View>
             )}
@@ -456,6 +471,7 @@ function FormularioAvaliacao({ pontoId }: PropsFormulario) {
           </>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -463,32 +479,39 @@ function FormularioAvaliacao({ pontoId }: PropsFormulario) {
 export default function AvaliacaoScreen() {
   const { pontoId } = useLocalSearchParams<{ pontoId?: string }>();
 
-  if (!pontoId) {
-    return (
-      <SafeAreaView style={estilos.areaSegura}>
-        <View style={estilos.estadoCentral}>
-          <View style={estilos.cartaoEstado}>
-            <Ionicons
-              name="bus-outline"
-              size={48}
-              color={Brand.themes.light.primary}
-            />
-            <Text style={estilos.mensagem}>
-              Escolha primeiro um ponto na tela inicial para adicionar sua
-              avaliação.
-            </Text>
-            <Pressable
-              style={estilos.botaoVoltar}
-              onPress={() => router.navigate("/inicio")}
-              accessibilityRole="button"
-            >
-              <Text style={estilos.textoVoltar}>Encontrar um ponto</Text>
-            </Pressable>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  if (!pontoId) return <EscolherPonto />;
 
   return <FormularioAvaliacao key={pontoId} pontoId={pontoId} />;
+}
+
+function EscolherPonto() {
+  const [busca, setBusca] = useState("");
+  const { stops, loading, error, reload } = useStops(busca);
+  return (
+    <SafeAreaView edges={["top", "left", "right"]} style={estilos.areaSegura}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={estilos.containerGeral}>
+        <Text style={estilos.rotuloPonto}>SUA VOZ MELHORA O CAMINHO</Text>
+        <Text style={estilos.tituloCabecalho}>Avaliar um ponto</Text>
+        <Text style={estilos.subtitulo}>Sua experiência ajuda outras pessoas a escolher onde esperar. Qual ponto você quer avaliar?</Text>
+        <View style={estilos.cartaoPonto}>
+          <View style={estilos.linha}><Ionicons name="search-outline" size={22} color={Brand.themes.light.primary} />
+            <TextInput style={[estilos.campoDeTexto, { flex: 1, minWidth: 0 }]} value={busca} onChangeText={setBusca} placeholder="Nome, rua, bairro ou linha" accessibilityLabel="Buscar ponto para avaliar" placeholderTextColor={Brand.themes.light.textSecondary} maxLength={200} />
+          </View>
+          <Text style={estilos.ajudaCampo}>1. Escolha o ponto   2. Dê sua nota   3. Envie</Text>
+        </View>
+        {loading ? <ActivityIndicator color={Brand.themes.light.primary} /> : error ? <View><Text accessibilityRole="alert" style={estilos.aviso}>{error}</Text><Pressable accessibilityRole="button" style={estilos.botaoVoltar} onPress={reload}><Text style={estilos.textoVoltar}>Tentar novamente</Text></Pressable></View> : <>
+          <Text style={estilos.rotuloPonto}>{stops.length} ponto(s) disponível(is)</Text>
+          {stops.slice(0, 30).map(ponto => (
+            <Pressable key={ponto.id} accessibilityRole="button" accessibilityLabel={`Avaliar ${ponto.name}`} onPress={() => router.setParams({ pontoId: ponto.id })} style={estilos.opcaoPonto}>
+              <View style={estilos.iconePonto}><Ionicons name="bus-outline" size={24} color={Brand.themes.light.primary} /></View>
+              <View style={{ flex: 1 }}><Text style={estilos.nomeOpcao}>{ponto.name}</Text><Text style={estilos.enderecoPonto}>{ponto.address} · {ponto.city}</Text></View>
+              <Ionicons name="chevron-forward" size={20} color={Brand.themes.light.primary} />
+            </Pressable>
+          ))}
+          {stops.length > 30 && <Text style={estilos.ajudaCampo}>Mostrando os primeiros 30 pontos. Refine a busca para encontrar o seu.</Text>}
+          {!stops.length && <View style={estilos.secao}><Ionicons name="search-outline" size={32} color={Brand.themes.light.primary} /><Text style={estilos.nomeOpcao}>Nenhum ponto encontrado</Text><Text style={estilos.ajudaCampo}>Tente outro nome, rua ou bairro.</Text></View>}
+        </>}
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
