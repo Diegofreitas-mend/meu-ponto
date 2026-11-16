@@ -1,12 +1,75 @@
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
     match /stops/{stopId} {
-      // O documento inteiro será público. Não inclua dados pessoais aqui.
       allow read: if resource.data.published == true;
-      // Cadastros administrativos são feitos pelo Console nesta etapa.
       allow write: if false;
+
+      match /reviews/{userId} {
+
+        function pontoPublicado() {
+          return get(/databases/$(database)/documents/stops/$(stopId)).data.published == true;
+        }
+
+        function tagValida(tags, index) {
+          return tags.size() <= index ||
+            (tags[index] is string &&
+             tags[index].size() > 0 &&
+             tags[index].size() <= 30);
+        }
+
+        function tagsValidas(tags) {
+          return tags is list
+            && tags.size() <= 5
+            && tagValida(tags, 0)
+            && tagValida(tags, 1)
+            && tagValida(tags, 2)
+            && tagValida(tags, 3)
+            && tagValida(tags, 4);
+        }
+
+        allow get: if request.auth != null
+          && request.auth.uid == userId;
+
+        allow list: if request.auth != null
+          && pontoPublicado();
+
+        allow create: if request.auth != null
+          && request.auth.uid == userId
+          && pontoPublicado()
+          && request.resource.data.keys().hasOnly([
+            'stopId',
+            'userId',
+            'rating',
+            'tags',
+            'description',
+            'createdAt'
+          ])
+          && request.resource.data.keys().hasAll([
+            'stopId',
+            'userId',
+            'rating',
+            'tags',
+            'description',
+            'createdAt'
+          ])
+          && request.resource.data.stopId == stopId
+          && request.resource.data.userId == userId
+          && request.resource.data.rating is int
+          && request.resource.data.rating >= 1
+          && request.resource.data.rating <= 5
+          && tagsValidas(request.resource.data.tags)
+          && request.resource.data.description is string
+          && request.resource.data.description.size() <= 500
+          && request.resource.data.createdAt == request.time;
+
+        allow update, delete: if false;
+      }
     }
+
     match /{document=**} {
       allow read, write: if false;
     }

@@ -1,6 +1,6 @@
 
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -12,11 +12,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import {
+  observarAlertasAvaliacoes,
+  type AlertaAvaliacao,
+} from '@/avaliacoes';
 import { useStops } from '@/pontos';
 import { alertStyles as styles } from '@/styles';
 import { colors } from '@/tema';
 
-// Permite pesquisar ignorando letras maiúsculas e acentos.
 function normalize(value: string): string {
   return value
     .normalize('NFD')
@@ -25,11 +28,10 @@ function normalize(value: string): string {
     .trim();
 }
 
-// Exibe a data no formato brasileiro.
 function formatDate(value: string): string {
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (Number.isNaN(date.getTime()) || date.getTime() === 0) {
     return 'Data não disponível';
   }
 
@@ -38,30 +40,90 @@ function formatDate(value: string): string {
 
 export default function AlertsScreen() {
   const [query, setQuery] = useState('');
-
-  // Consulta os pontos publicados no Firebase.
+  const [reviewAlerts, setReviewAlerts] = useState<
+    Record<string, AlertaAvaliacao[]>
+  >({});
+  const [reviewErrors, setReviewErrors] = useState<string[]>([]);
   const { stops, loading, error, reload } = useStops('');
 
-  // Reúne os alertas vinculados às paradas.
+  const stopIds = useMemo(
+    () => stops.map(stop => stop.id).sort().join('|'),
+    [stops],
+  );
+
+  useEffect(() => {
+    if (!stopIds) {
+      setReviewAlerts({});
+      setReviewErrors([]);
+      return;
+    }
+
+    const ids = stopIds.split('|');
+    const active = new Set(ids);
+
+    setReviewAlerts(current => {
+      const next: Record<string, AlertaAvaliacao[]> = {};
+
+      ids.forEach(id => {
+        if (current[id]) next[id] = current[id];
+      });
+
+      return next;
+    });
+
+    setReviewErrors(current => current.filter(id => active.has(id)));
+
+    const cancelar = ids.map(pontoId =>
+      observarAlertasAvaliacoes(
+        pontoId,
+        alertas => {
+          setReviewAlerts(current => ({
+            ...current,
+            [pontoId]: alertas,
+          }));
+          setReviewErrors(current => current.filter(id => id !== pontoId));
+        },
+        () => {
+          setReviewErrors(current =>
+            current.includes(pontoId) ? current : [...current, pontoId],
+          );
+        },
+      ),
+    );
+
+    return () => cancelar.forEach(parar => parar());
+  }, [stopIds]);
+
   const allAlerts = useMemo(() => {
     return stops
-      .flatMap(stop =>
-        stop.alerts.map(alert => ({
+      .flatMap(stop => {
+        const existentes = stop.alerts.map(alert => ({
           ...alert,
+          id: `original-${alert.id}`,
           stopId: stop.id,
           stopName: stop.name,
           address: stop.address,
           city: stop.city,
-        }))
-      )
+        }));
+
+        const avaliacoes = (reviewAlerts[stop.id] || []).map(alert => ({
+          ...alert,
+          id: `avaliacao-${alert.id}`,
+          stopId: stop.id,
+          stopName: stop.name,
+          address: stop.address,
+          city: stop.city,
+        }));
+
+        return [...existentes, ...avaliacoes];
+      })
       .sort(
         (a, b) =>
           new Date(b.createdAt).getTime() -
           new Date(a.createdAt).getTime()
       );
-  }, [stops]);
+  }, [stops, reviewAlerts]);
 
-  // Filtra os alertas pela pesquisa.
   const visibleAlerts = useMemo(() => {
     const search = normalize(query);
 
@@ -156,8 +218,8 @@ export default function AlertsScreen() {
               <Text style={styles.caption}>
                 {loading
                   ? 'Carregando alertas...'
-                  : error
-                    ? 'Não foi possível consultar os alertas'
+                  : error || reviewErrors.length > 0
+                    ? 'Alguns alertas não puderam ser consultados'
                     : `${visibleAlerts.length} ${
                         visibleAlerts.length === 1
                           ? 'alerta encontrado'
