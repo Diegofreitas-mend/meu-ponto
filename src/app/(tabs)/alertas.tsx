@@ -1,21 +1,18 @@
 
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Image,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import {
-  observarAlertasAvaliacoes,
-  type AlertaAvaliacao,
-} from '@/avaliacoes';
+import { useAlertasAvaliacoes } from '@/use-alertas-avaliacoes';
 import { useStops } from '@/pontos';
 import { alertStyles as styles } from '@/styles';
 import { colors } from '@/tema';
@@ -40,59 +37,8 @@ function formatDate(value: string): string {
 
 export default function AlertsScreen() {
   const [query, setQuery] = useState('');
-  const [reviewAlerts, setReviewAlerts] = useState<
-    Record<string, AlertaAvaliacao[]>
-  >({});
-  const [reviewErrors, setReviewErrors] = useState<string[]>([]);
   const { stops, loading, error, reload } = useStops('');
-
-  const stopIds = useMemo(
-    () => stops.map(stop => stop.id).sort().join('|'),
-    [stops],
-  );
-
-  useEffect(() => {
-    if (!stopIds) {
-      setReviewAlerts({});
-      setReviewErrors([]);
-      return;
-    }
-
-    const ids = stopIds.split('|');
-    const active = new Set(ids);
-
-    setReviewAlerts(current => {
-      const next: Record<string, AlertaAvaliacao[]> = {};
-
-      ids.forEach(id => {
-        if (current[id]) next[id] = current[id];
-      });
-
-      return next;
-    });
-
-    setReviewErrors(current => current.filter(id => active.has(id)));
-
-    const cancelar = ids.map(pontoId =>
-      observarAlertasAvaliacoes(
-        pontoId,
-        alertas => {
-          setReviewAlerts(current => ({
-            ...current,
-            [pontoId]: alertas,
-          }));
-          setReviewErrors(current => current.filter(id => id !== pontoId));
-        },
-        () => {
-          setReviewErrors(current =>
-            current.includes(pontoId) ? current : [...current, pontoId],
-          );
-        },
-      ),
-    );
-
-    return () => cancelar.forEach(parar => parar());
-  }, [stopIds]);
+  const { reviewAlerts, reviewErrors } = useAlertasAvaliacoes(stops);
 
   const allAlerts = useMemo(() => {
     return stops
@@ -124,155 +70,30 @@ export default function AlertsScreen() {
       );
   }, [stops, reviewAlerts]);
 
+  const indice = useMemo(() => allAlerts.map(alert => ({
+    alert,
+    texto: normalize(`${alert.stopName} ${alert.address} ${alert.city} ${alert.title} ${alert.message}`),
+  })), [allAlerts]);
+
   const visibleAlerts = useMemo(() => {
     const search = normalize(query);
 
     if (!search) return allAlerts;
 
-    return allAlerts.filter(alert =>
-      normalize(
-        `${alert.stopName} ${alert.address} ${alert.city} ${alert.title} ${alert.message}`
-      ).includes(search)
-    );
-  }, [allAlerts, query]);
+    return indice.filter(item => item.texto.includes(search)).map(item => item.alert);
+  }, [allAlerts, indice, query]);
 
   return (
     <SafeAreaView
       edges={['top', 'left', 'right']}
       style={styles.root}
     >
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.content}
-      >
-        <View style={styles.hero}>
-          <View style={styles.header}>
-            <Image
-              source={require('@/assets/brand/meu-ponto-logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-              accessibilityLabel="Logo do aplicativo"
-            />
-          </View>
-
-          <View style={styles.heroIntro}>
-            <View style={styles.titleRow}>
-              <Ionicons
-                name="notifications-outline"
-                size={28}
-                color="#FFFFFF"
-              />
-
-              <Text style={styles.title}>
-                Alertas
-              </Text>
-            </View>
-
-            <Text style={styles.subtitle}>
-              Acompanhe os relatos sobre as paradas de ônibus.
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.body}>
-          <View style={styles.search}>
-            <Ionicons
-              name="search-outline"
-              size={22}
-              color={colors.primary}
-            />
-
-            <TextInput
-              accessibilityLabel="Buscar alertas"
-              placeholder="Buscar por parada ou alerta"
-              placeholderTextColor={colors.textSecondary}
-              value={query}
-              onChangeText={setQuery}
-              maxLength={200}
-              returnKeyType="search"
-              style={styles.input}
-            />
-
-            {query.length > 0 && (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Limpar busca"
-                onPress={() => setQuery('')}
-                style={styles.clear}
-              >
-                <Ionicons
-                  name="close"
-                  size={20}
-                  color={colors.textSecondary}
-                />
-              </Pressable>
-            )}
-          </View>
-
-          <View style={styles.sectionHead}>
-            <View style={styles.grow}>
-              <Text style={styles.sectionTitle}>
-                Alertas das paradas
-              </Text>
-
-              <Text style={styles.caption}>
-                {loading
-                  ? 'Carregando alertas...'
-                  : error || reviewErrors.length > 0
-                    ? 'Alguns alertas não puderam ser consultados'
-                    : `${visibleAlerts.length} ${
-                        visibleAlerts.length === 1
-                          ? 'alerta encontrado'
-                          : 'alertas encontrados'
-                      }`}
-              </Text>
-            </View>
-          </View>
-
-          {loading && (
-            <View style={styles.empty}>
-              <ActivityIndicator
-                size="large"
-                color={colors.primary}
-              />
-
-              <Text style={styles.emptyText}>
-                Buscando alertas no Firebase...
-              </Text>
-            </View>
-          )}
-
-          {!loading && error && (
-            <View style={styles.empty}>
-              <Ionicons
-                name="cloud-offline-outline"
-                size={32}
-                color={colors.warning}
-              />
-
-              <Text style={styles.emptyTitle}>
-                Erro ao carregar alertas
-              </Text>
-
-              <Text style={styles.emptyText}>
-                {error}
-              </Text>
-
-              <Pressable
-                accessibilityRole="button"
-                onPress={reload}
-                style={styles.actionButton}
-              >
-                <Text style={styles.actionText}>
-                  Tentar novamente
-                </Text>
-              </Pressable>
-            </View>
-          )}
-
-          {!loading && !error && visibleAlerts.map(alert => (
+      <FlatList
+        data={!loading && !error ? visibleAlerts : []}
+        keyExtractor={alert => JSON.stringify([alert.stopId, alert.id])}
+        renderItem={({ item: alert }) => (
+          <View style={styles.body}>
             <View
-              key={`${alert.stopId}-${alert.id}`}
               style={styles.card}
             >
               <View style={styles.row}>
@@ -327,49 +148,188 @@ export default function AlertsScreen() {
                 </Text>
               </View>
             </View>
-          ))}
+          </View>
+        )}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.content}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        ListHeaderComponent={
+          <>
+            <View style={styles.hero}>
+              <View style={styles.header}>
+                <Image
+                  source={require('@/assets/brand/meu-ponto-logo.png')}
+                  style={styles.logo}
+                  resizeMode="contain"
+                  accessibilityLabel="Logo do aplicativo"
+                />
+              </View>
 
-          {!loading &&
-            !error &&
-            visibleAlerts.length === 0 && (
-              <View style={styles.empty}>
+              <View style={styles.heroIntro}>
+                <View style={styles.titleRow}>
+                  <Ionicons
+                    name="notifications-outline"
+                    size={28}
+                    color="#FFFFFF"
+                  />
+
+                  <Text style={styles.title}>
+                    Alertas
+                  </Text>
+                </View>
+
+                <Text style={styles.subtitle}>
+                  Acompanhe os relatos sobre as paradas de ônibus.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.body}>
+              <View style={styles.search}>
                 <Ionicons
-                  name={
-                    query.trim()
-                      ? 'search-outline'
-                      : 'checkmark-circle-outline'
-                  }
-                  size={32}
+                  name="search-outline"
+                  size={22}
                   color={colors.primary}
                 />
 
-                <Text style={styles.emptyTitle}>
-                  {query.trim()
-                    ? 'Nenhum alerta encontrado'
-                    : 'Nenhum alerta registrado'}
-                </Text>
+                <TextInput
+                  accessibilityLabel="Buscar alertas"
+                  placeholder="Buscar por parada ou alerta"
+                  placeholderTextColor={colors.textSecondary}
+                  value={query}
+                  onChangeText={setQuery}
+                  maxLength={200}
+                  returnKeyType="search"
+                  style={styles.input}
+                />
 
-                <Text style={styles.emptyText}>
-                  {query.trim()
-                    ? 'Tente pesquisar por outra parada ou ocorrência.'
-                    : 'Não existem alertas registrados nas paradas publicadas no momento.'}
-                </Text>
-
-                {query.trim().length > 0 && (
+                {query.length > 0 && (
                   <Pressable
                     accessibilityRole="button"
+                    accessibilityLabel="Limpar busca"
                     onPress={() => setQuery('')}
-                    style={styles.actionButton}
+                    style={styles.clear}
                   >
-                    <Text style={styles.actionText}>
-                      Limpar busca
-                    </Text>
+                    <Ionicons
+                      name="close"
+                      size={20}
+                      color={colors.textSecondary}
+                    />
                   </Pressable>
                 )}
               </View>
-            )}
-        </View>
-      </ScrollView>
+
+              <View style={styles.sectionHead}>
+                <View style={styles.grow}>
+                  <Text style={styles.sectionTitle}>
+                    Alertas das paradas
+                  </Text>
+
+                  <Text style={styles.caption}>
+                    {loading
+                      ? 'Carregando alertas...'
+                      : error || reviewErrors.length > 0
+                        ? 'Alguns alertas não puderam ser consultados'
+                        : `${visibleAlerts.length} ${
+                            visibleAlerts.length === 1
+                              ? 'alerta encontrado'
+                              : 'alertas encontrados'
+                          }`}
+                  </Text>
+                </View>
+              </View>
+
+              {loading && (
+                <View style={styles.empty}>
+                  <ActivityIndicator
+                    size="large"
+                    color={colors.primary}
+                  />
+
+                  <Text style={styles.emptyText}>
+                    Buscando alertas no Firebase...
+                  </Text>
+                </View>
+              )}
+
+              {!loading && error && (
+                <View style={styles.empty}>
+                  <Ionicons
+                    name="cloud-offline-outline"
+                    size={32}
+                    color={colors.warning}
+                  />
+
+                  <Text style={styles.emptyTitle}>
+                    Erro ao carregar alertas
+                  </Text>
+
+                  <Text style={styles.emptyText}>
+                    {error}
+                  </Text>
+
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={reload}
+                    style={styles.actionButton}
+                  >
+                    <Text style={styles.actionText}>
+                      Tentar novamente
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
+
+            </View>
+          </>
+        }
+        ListFooterComponent={
+          <View style={styles.body}>
+            {!loading &&
+              !error &&
+              visibleAlerts.length === 0 && (
+                <View style={styles.empty}>
+                  <Ionicons
+                    name={
+                      query.trim()
+                        ? 'search-outline'
+                        : 'checkmark-circle-outline'
+                    }
+                    size={32}
+                    color={colors.primary}
+                  />
+
+                  <Text style={styles.emptyTitle}>
+                    {query.trim()
+                      ? 'Nenhum alerta encontrado'
+                      : 'Nenhum alerta registrado'}
+                  </Text>
+
+                  <Text style={styles.emptyText}>
+                    {query.trim()
+                      ? 'Tente pesquisar por outra parada ou ocorrência.'
+                      : 'Não existem alertas registrados nas paradas publicadas no momento.'}
+                  </Text>
+
+                  {query.trim().length > 0 && (
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => setQuery('')}
+                      style={styles.actionButton}
+                    >
+                      <Text style={styles.actionText}>
+                        Limpar busca
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+          </View>
+        }
+      />
+
     </SafeAreaView>
   );
 }

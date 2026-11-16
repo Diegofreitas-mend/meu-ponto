@@ -1,9 +1,10 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Image,
   Modal,
   Pressable,
@@ -14,17 +15,20 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  observarAlertasAvaliacoes,
   observarResumoAvaliacoes,
-  type AlertaAvaliacao,
   type ResumoAvaliacoes,
 } from '@/avaliacoes';
 import { useStops } from '@/pontos';
+import { useAlertasAvaliacoes } from '@/use-alertas-avaliacoes';
+import { ResumoInteligente } from '@/components/ResumoInteligente';
 import { homeStyles as styles } from '@/styles';
 import { colors } from '@/tema';
 import type { BusStop } from '@/tipos';
 
 type StopFilter = 'all' | 'accessible' | 'covered' | 'alerts';
+type HomeRow =
+  | { kind: 'stop'; stop: BusStop }
+  | { kind: 'alert'; stop: BusStop; alert: BusStop['alerts'][number] };
 
 type ResumoProps = {
   pontoId: string;
@@ -119,56 +123,8 @@ export default function HomeScreen() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<StopFilter>('all');
   const [selected, setSelected] = useState<BusStop | null>(null);
-  const [reviewAlerts, setReviewAlerts] = useState<
-    Record<string, AlertaAvaliacao[]>
-  >({});
-  const [reviewErrors, setReviewErrors] = useState<string[]>([]);
-  const { stops, loading, error, reload } = useStops(query);
-
-  const stopIds = useMemo(
-    () => JSON.stringify(stops.map(stop => stop.id).sort()),
-    [stops],
-  );
-
-  useEffect(() => {
-    const ids: string[] = JSON.parse(stopIds);
-    let ativo = true;
-
-    setReviewAlerts({});
-    setReviewErrors([]);
-
-    const cancelar = ids.map(pontoId =>
-      observarAlertasAvaliacoes(
-        pontoId,
-        alertas => {
-          if (!ativo) return;
-
-          setReviewAlerts(current => ({
-            ...current,
-            [pontoId]: alertas,
-          }));
-
-          setReviewErrors(current =>
-            current.filter(id => id !== pontoId),
-          );
-        },
-        () => {
-          if (!ativo) return;
-
-          setReviewErrors(current =>
-            current.includes(pontoId)
-              ? current
-              : [...current, pontoId],
-          );
-        },
-      ),
-    );
-
-    return () => {
-      ativo = false;
-      cancelar.forEach(parar => parar());
-    };
-  }, [stopIds]);
+  const { stops, allStops, loading, error, reload } = useStops(query);
+  const { reviewAlerts, reviewErrors } = useAlertasAvaliacoes(allStops);
 
   const visibleStops = stops.filter(stop => {
     if (filter === 'accessible') return stop.tags.some(tag => normalizeTag(tag) === 'acessivel');
@@ -179,6 +135,10 @@ export default function HomeScreen() {
 
   const total = visibleStops.length;
   const alerts = visibleStops.flatMap(stop => stop.alerts.map(alert => ({ stop, alert })));
+  const rows: HomeRow[] = [
+    ...visibleStops.map(stop => ({ kind: 'stop' as const, stop })),
+    ...(!loading && !error ? alerts.map(item => ({ kind: 'alert' as const, ...item })) : []),
+  ];
 
   function status(stop: BusStop) {
     if (stop.status === 'good') return { text: 'Boa condição', color: colors.success, background: colors.successSurface };
@@ -241,75 +201,106 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.root}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
-        <View style={styles.hero}>
-          <View style={styles.header}>
-            <Image source={require('@/assets/brand/meu-ponto-logo.png')} style={styles.logo} resizeMode="contain" accessibilityLabel="Meu Ponto. Informação trazendo conforto." />
-            <Pressable accessibilityRole="button" accessibilityLabel="Abrir meu perfil" onPress={() => router.navigate('/perfil')} style={({ pressed }) => [styles.profileButton, pressed && styles.pressed]}>
-              <Ionicons name="person-outline" size={22} color="white" />
-            </Pressable>
-          </View>
-          <View style={styles.heroIntro}>
-            <Text style={styles.title}>Encontre seu ponto.</Text>
-            <Text style={styles.subtitle}>Consulte o endereço e as condições da parada.</Text>
-          </View>
-        </View>
-
-        <View style={styles.body}>
-          <View style={styles.search}>
-            <Ionicons name="search-outline" size={22} color={colors.primary} />
-            <TextInput accessibilityLabel="Buscar pontos por nome, rua, cidade ou característica" placeholder="Nome do ponto, rua ou bairro" placeholderTextColor={colors.textSecondary}
-              value={query} onChangeText={setQuery} maxLength={200} returnKeyType="search" style={styles.input} />
-            {query.length > 0 && <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Limpar busca" style={styles.clear}><Ionicons name="close" size={20} color={colors.textSecondary} /></Pressable>}
-          </View>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-            {filters.map(item => (
-              <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Filtrar: ${item.label}`}
-                accessibilityState={{ selected: filter === item.id }} aria-selected={filter === item.id} onPress={() => setFilter(item.id)}
-                style={({ pressed }) => [styles.filter, filter === item.id && styles.filterActive, pressed && styles.pressed]}>
-                <Ionicons name={item.icon} size={16} color={filter === item.id ? 'white' : colors.textSecondary} />
-                <Text style={[styles.filterText, filter === item.id && styles.filterTextActive]}>{item.label}</Text>
+      <FlatList<HomeRow>
+        data={rows}
+        keyExtractor={item => JSON.stringify([item.kind, item.stop.id, item.kind === 'alert' ? item.alert.id : null])}
+        renderItem={({ item, index }) => (
+          <View style={styles.body}>
+            {item.kind === 'stop' ? renderStop(item.stop) : <>
+              {index === visibleStops.length && (
+                <View style={styles.sectionHead}><Text style={styles.sectionTitle}>Relatos da comunidade</Text></View>
+              )}
+              <Pressable accessibilityRole="button" accessibilityLabel={`Ver relato sobre ${item.stop.name}`}
+                onPress={() => setSelected(item.stop)} style={({ pressed }) => [styles.alertCard, pressed && styles.pressed]}>
+                <View style={styles.row}>
+                  <Ionicons name="alert-circle-outline" size={20} color={colors.warning} />
+                  <Text style={styles.alertTitle}>{item.alert.title}</Text>
+                </View>
+                <Text style={styles.alertText}>{item.alert.message}</Text>
+                <View style={styles.alertFooter}>
+                  <Text style={styles.alertPlace}>{item.stop.name}</Text>
+                  <Text style={styles.alertDate}>{new Date(item.alert.createdAt).toLocaleDateString('pt-BR')}</Text>
+                </View>
               </Pressable>
-            ))}
-          </ScrollView>
-
-          <View style={styles.sectionHead}>
-            <View style={styles.grow}>
-              <Text style={styles.sectionTitle}>{query.trim() ? 'Resultado da busca' : 'Pontos de ônibus'}</Text>
-              {!loading && !error && <Text style={styles.caption}>{total} {total === 1 ? 'ponto encontrado' : 'pontos encontrados'}</Text>}
-            </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Atualizar pontos" disabled={loading} onPress={reload} style={({ pressed }) => [styles.refresh, pressed && styles.pressed]}>
-              <Ionicons name="refresh-outline" size={20} color={colors.primary} />
-            </Pressable>
+            </>}
           </View>
+        )}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.content}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        windowSize={7}
+        ListHeaderComponent={
+          <>
+            <View style={styles.hero}>
+              <View style={styles.header}>
+                <Image source={require('@/assets/brand/meu-ponto-logo.png')} style={styles.logo} resizeMode="contain" accessibilityLabel="Meu Ponto. Informação trazendo conforto." />
+                <Pressable accessibilityRole="button" accessibilityLabel="Abrir meu perfil" onPress={() => router.navigate('/perfil')} style={({ pressed }) => [styles.profileButton, pressed && styles.pressed]}>
+                  <Ionicons name="person-outline" size={22} color="white" />
+                </Pressable>
+              </View>
+              <View style={styles.heroIntro}>
+                <Text style={styles.title}>Encontre seu ponto.</Text>
+                <Text style={styles.subtitle}>Consulte o endereço e as condições da parada.</Text>
+              </View>
+            </View>
 
-          {visibleStops.map(renderStop)}
-          {loading && <View style={styles.empty} accessibilityRole="progressbar" accessibilityLabel="Carregando pontos"><ActivityIndicator color={colors.primary} /><Text style={styles.emptyText}>Buscando os pontos…</Text></View>}
-          {error && <View accessibilityRole="alert" style={styles.empty}>
-            <Ionicons name="cloud-offline-outline" size={28} color={colors.textSecondary} />
-            <Text style={styles.emptyText}>{error}</Text>
-            <Pressable accessibilityRole="button" onPress={reload} style={styles.actionButton}><Text style={styles.actionText}>Tentar novamente</Text></Pressable>
-          </View>}
-          {!loading && !error && visibleStops.length === 0 && <View style={styles.empty}>
-            <View style={styles.emptyIcon}><Ionicons name="bus-outline" size={30} color={colors.primary} /></View>
-            <Text style={styles.emptyTitle}>{query.trim() || filter !== 'all' ? 'Nenhum ponto encontrado' : 'Ainda não há pontos cadastrados'}</Text>
-            <Text style={styles.emptyText}>{query.trim() || filter !== 'all' ? 'Tente outra busca ou remova os filtros.' : 'Quando um ponto for cadastrado, ele aparecerá aqui.'}</Text>
-            {(query.trim() || filter !== 'all') && <Pressable accessibilityRole="button" onPress={() => { setQuery(''); setFilter('all'); }} style={styles.actionButton}><Text style={styles.actionText}>{filter === 'all' ? 'Limpar busca' : 'Limpar filtros'}</Text></Pressable>}
-          </View>}
+            <View style={styles.body}>
+              <View style={styles.search}>
+                <Ionicons name="search-outline" size={22} color={colors.primary} />
+                <TextInput accessibilityLabel="Buscar pontos por nome, rua, cidade ou característica" placeholder="Nome do ponto, rua ou bairro" placeholderTextColor={colors.textSecondary}
+                  value={query} onChangeText={setQuery} maxLength={200} returnKeyType="search" style={styles.input} />
+                {query.length > 0 && <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Limpar busca" style={styles.clear}><Ionicons name="close" size={20} color={colors.textSecondary} /></Pressable>}
+              </View>
 
-          {!loading && !error && visibleStops.length > 0 && <>
-            {alerts.length > 0 ? <>
-              <View style={styles.sectionHead}><Text style={styles.sectionTitle}>Relatos da comunidade</Text></View>
-              {alerts.map(({ stop, alert }) => <Pressable key={`${stop.id}-${alert.id}`} accessibilityRole="button" accessibilityLabel={`Ver relato sobre ${stop.name}`} onPress={() => setSelected(stop)} style={({ pressed }) => [styles.alertCard, pressed && styles.pressed]}>
-                <View style={styles.row}><Ionicons name="alert-circle-outline" size={20} color={colors.warning} /><Text style={styles.alertTitle}>{alert.title}</Text></View>
-                <Text style={styles.alertText}>{alert.message}</Text>
-                <View style={styles.alertFooter}><Text style={styles.alertPlace}>{stop.name}</Text><Text style={styles.alertDate}>{new Date(alert.createdAt).toLocaleDateString('pt-BR')}</Text></View>
-              </Pressable>)}
-            </> : <View style={styles.noAlerts}><Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.textSecondary} /><Text style={styles.noAlertsText}>Ainda não há relatos nos pontos listados.</Text></View>}
-          </>}
-        </View>
-      </ScrollView>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+                {filters.map(item => (
+                  <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`Filtrar: ${item.label}`}
+                    accessibilityState={{ selected: filter === item.id }} aria-selected={filter === item.id} onPress={() => setFilter(item.id)}
+                    style={({ pressed }) => [styles.filter, filter === item.id && styles.filterActive, pressed && styles.pressed]}>
+                    <Ionicons name={item.icon} size={16} color={filter === item.id ? 'white' : colors.textSecondary} />
+                    <Text style={[styles.filterText, filter === item.id && styles.filterTextActive]}>{item.label}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+
+              <View style={styles.sectionHead}>
+                <View style={styles.grow}>
+                  <Text style={styles.sectionTitle}>{query.trim() ? 'Resultado da busca' : 'Pontos de ônibus'}</Text>
+                  {!loading && !error && <Text style={styles.caption}>{total} {total === 1 ? 'ponto encontrado' : 'pontos encontrados'}</Text>}
+                </View>
+                <Pressable accessibilityRole="button" accessibilityLabel="Atualizar pontos" disabled={loading} onPress={reload} style={({ pressed }) => [styles.refresh, pressed && styles.pressed]}>
+                  <Ionicons name="refresh-outline" size={20} color={colors.primary} />
+                </Pressable>
+              </View>
+
+            </View>
+          </>
+        }
+        ListFooterComponent={
+          <View style={styles.body}>
+            {loading && <View style={styles.empty} accessibilityRole="progressbar" accessibilityLabel="Carregando pontos"><ActivityIndicator color={colors.primary} /><Text style={styles.emptyText}>Buscando os pontos…</Text></View>}
+            {error && <View accessibilityRole="alert" style={styles.empty}>
+              <Ionicons name="cloud-offline-outline" size={28} color={colors.textSecondary} />
+              <Text style={styles.emptyText}>{error}</Text>
+              <Pressable accessibilityRole="button" onPress={reload} style={styles.actionButton}><Text style={styles.actionText}>Tentar novamente</Text></Pressable>
+            </View>}
+            {!loading && !error && visibleStops.length === 0 && <View style={styles.empty}>
+              <View style={styles.emptyIcon}><Ionicons name="bus-outline" size={30} color={colors.primary} /></View>
+              <Text style={styles.emptyTitle}>{query.trim() || filter !== 'all' ? 'Nenhum ponto encontrado' : 'Ainda não há pontos cadastrados'}</Text>
+              <Text style={styles.emptyText}>{query.trim() || filter !== 'all' ? 'Tente outra busca ou remova os filtros.' : 'Quando um ponto for cadastrado, ele aparecerá aqui.'}</Text>
+              {(query.trim() || filter !== 'all') && <Pressable accessibilityRole="button" onPress={() => { setQuery(''); setFilter('all'); }} style={styles.actionButton}><Text style={styles.actionText}>{filter === 'all' ? 'Limpar busca' : 'Limpar filtros'}</Text></Pressable>}
+            </View>}
+
+            {!loading && !error && visibleStops.length > 0 && alerts.length === 0 && (
+              <View style={styles.noAlerts}>
+                <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.textSecondary} />
+                <Text style={styles.noAlertsText}>Ainda não há relatos nos pontos listados.</Text>
+              </View>
+            )}
+          </View>
+        }
+      />
 
       <Modal visible={selected !== null} transparent animationType="fade" onRequestClose={() => setSelected(null)}>
         <View style={styles.modalBackdrop}><View accessibilityViewIsModal style={styles.modal}>
@@ -320,6 +311,7 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.address}>{selected.address} · {selected.city}</Text>
             <ResumoDoPonto pontoId={selected.id} modal />
+            <ResumoInteligente key={selected.id} pontoId={selected.id} />
             <Text style={styles.modalText}>Linhas: {selected.lines.length ? selected.lines.join(' · ') : 'Não informadas'}</Text>
             {selected.tags.length > 0 && <View style={styles.tags}>{selected.tags.map(tag => <Text key={tag} style={styles.tag}>{tag}</Text>)}</View>}
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 // 1. Consulta os pontos publicados no Firestore.
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { getDatabase } from '@/firebase';
@@ -9,7 +9,7 @@ export function subscribeStops(onData: (stops: BusStop[]) => void, onError: (err
   const publishedStops = query(collection(getDatabase(), 'stops'), where('published', '==', true));
   return onSnapshot(publishedStops, { includeMetadataChanges: true }, snapshot => {
     // Aguarde o servidor para não confundir um cache vazio com um banco vazio.
-    if (snapshot.metadata.fromCache) return;
+    if (snapshot.metadata.fromCache && snapshot.empty) return;
     try {
       const stops = snapshot.docs.map(doc => parseStopDocument(doc.id, doc.data()));
       onData(stops.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')));
@@ -23,7 +23,17 @@ export function subscribeStops(onData: (stops: BusStop[]) => void, onError: (err
 
 const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
-export function useStops(query: string) {
+type PontosContexto = {
+  allStops: BusStop[];
+  indice: { stop: BusStop; texto: string }[];
+  loading: boolean;
+  error: string | null;
+  reload: () => void;
+};
+
+const PontosContext = createContext<PontosContexto | null>(null);
+
+export function StopsProvider({ children }: { children: ReactNode }) {
   const [allStops, setAllStops] = useState<BusStop[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,9 +71,27 @@ export function useStops(query: string) {
     };
   }, [revision]);
 
+  const indice = useMemo(() => allStops.map(stop => ({
+    stop,
+    texto: normalize(`${stop.name} ${stop.address} ${stop.city} ${stop.tags.join(' ')}`),
+  })), [allStops]);
+  const reload = useCallback(() => setRevision(value => value + 1), []);
+
+  return (
+    <PontosContext value={{ allStops, indice, loading, error, reload }}>
+      {children}
+    </PontosContext>
+  );
+}
+
+export function useStops(query: string) {
+  const contexto = useContext(PontosContext);
+  if (!contexto) throw new Error('useStops precisa de StopsProvider.');
+  const { allStops, indice, loading, error, reload } = contexto;
   const stops = useMemo(() => {
     const search = normalize(query);
-    return allStops.filter(stop => normalize(`${stop.name} ${stop.address} ${stop.city} ${stop.tags.join(' ')}`).includes(search));
-  }, [allStops, query]);
-  return { stops, loading, error, total: stops.length, reload: () => setRevision(value => value + 1) };
+    if (!search) return allStops;
+    return indice.filter(item => item.texto.includes(search)).map(item => item.stop);
+  }, [allStops, indice, query]);
+  return { stops, allStops, loading, error, total: stops.length, reload };
 }
