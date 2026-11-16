@@ -8,12 +8,14 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Brand } from '@/tema';
 import { useAuth } from '@/sessao';
+import { useAdmin } from '@/admin';
 import { getSessionAuth } from '@/firebase';
 import { authErrorMessage } from '@/validacoes';
 
 const colors = { ...Brand.themes.light, ...Brand.home };
 export default function ProfileScreen() {
   const { user, ready, error: sessionError, retry, notice, setNotice } = useAuth();
+  const { admin } = useAdmin();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const locked = useRef(false);
@@ -34,6 +36,7 @@ export default function ProfileScreen() {
         <Text style={styles.name}>{user.displayName || 'Sua conta'}</Text>
         <Text style={styles.description}>{user.email}</Text>
         <Text style={styles.caption}>Conectado ao Meu Ponto</Text>
+        {admin && <Pressable accessibilityRole="button" onPress={() => router.push('/admin')} style={styles.button}><Text style={styles.buttonText}>Painel administrativo</Text></Pressable>}
         {notice && <Text accessibilityRole="alert" style={styles.description}>{notice}</Text>}
         {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
         <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy, busy }} onPress={() => void logout()} disabled={busy} style={[styles.secondary, busy && styles.disabled]}>{busy ? <ActivityIndicator color={colors.primary} /> : <Text style={styles.secondaryText}>Sair da conta</Text>}</Pressable>

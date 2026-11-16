@@ -37,6 +37,10 @@ No login, a função `login()` valida os campos, chama `signInWithEmailAndPasswo
 | Quem está conectado | `src/sessao.tsx` |
 | Mensagens de erro e validações | `src/validacoes.ts` |
 | Formato de um ponto de ônibus | `src/tipos.ts` |
+| Telas do painel administrativo | `src/app/(tabs)/admin/` |
+| Papel de admin, usuários e gravação de pontos | `src/admin.ts` |
+| Validações do painel e lista de admins usada pela interface | `src/admin-validacoes.ts` |
+| Quem é admin e o que cada um pode gravar | `firebase/firestore.rules` |
 
 ## 3. Como usar os estilos
 
@@ -48,6 +52,7 @@ No login, a função `login()` valida os campos, chama `signInWithEmailAndPasswo
 - `authStyles`: login e cadastro, que têm a mesma aparência.
 - `profileStyles`: Perfil.
 - `placeholderStyles`: telas com Em breve.
+- `adminStyles`: telas do painel administrativo.
 
 Na tela, você verá uma importação como:
 
@@ -69,10 +74,13 @@ O projeto usa Expo Router. Nesse sistema, o nome do arquivo cria a rota:
 - `app/index.tsx` abre `/`, reutilizando o formulário de `login.tsx`.
 - `app/recuperar-senha.tsx` abre `/recuperar-senha`.
 - `app/(tabs)/inicio.tsx` abre `/inicio`, a lista de pontos após o acesso.
+- `app/(tabs)/admin/index.tsx` abre `/admin`, o painel administrativo. Ele fica dentro de `(tabs)` para manter a barra inferior, mas não tem botão próprio: abre pelo Perfil.
 
 A pasta `(tabs)` agrupa as telas com a barra inferior; o nome entre parênteses não aparece no endereço. O login e o cadastro ficam fora dela para não mostrar a barra durante a autenticação.
 
 O `_layout.tsx` da raiz faz o papel de organizar o app inteiro, semelhante à parte de navegação de um App.js. O `_layout.tsx` de `(tabs)` monta somente a barra inferior. Não são telas extras.
+
+Para esconder uma aba da barra sem bloquear a rota, use `tabBarButton: () => null`. Não use `href: null`: nesta versão do Expo Router ele redireciona a rota para o Início.
 
 Não crie styles.ts dentro de app: o Router poderia interpretá-lo como outra página.
 
@@ -83,6 +91,10 @@ Não crie styles.ts dentro de app: o Router poderia interpretá-lo como outra p�
 **Login:** campos em `login.tsx` → Firebase Authentication → sessão em `sessao.tsx` → nome e e-mail no Perfil.
 
 **Cadastro:** campos em `cadastro.tsx` → Firebase Authentication cria a conta → salva o nome → abre o início.
+
+**Perfil do usuário:** ao entrar, `useSincronizarUsuario()` (chamado no `_layout.tsx` da raiz) cria ou atualiza `usuarios/{uid}` no Firestore com nome, e-mail e status. Se o status for `bloqueado`, o app desconecta a pessoa.
+
+**Painel administrativo:** botão no Perfil (só para admins) → telas em `src/app/(tabs)/admin/` → funções em `admin.ts` → Firestore. Pontos são gravados em `stops`; usuários em `usuarios` e `admins`. Quem decide se a pessoa é admin são as regras do Firestore: a lista fixa `adminsIniciais()` ou um documento em `admins/{uid}`. O passo a passo está em [docs/admin.md](docs/admin.md).
 
 **Sair:** botão em `perfil.tsx` → `signOut()` → a sessão passa a não ter usuário → o app volta para a tela de entrada.
 
@@ -101,6 +113,7 @@ As senhas são entregues ao Firebase Authentication. O app não grava senhas no 
 - `components/CampoSenha.tsx`: campo com o botão de mostrar/ocultar senha, reutilizado em login e cadastro.
 - `components/EmBreve.tsx`: pequeno aviso reutilizado nas abas ainda não implementadas.
 - `firebase/firestore.rules`: controla quais documentos podem ser lidos e alterados. Editar o arquivo exige publicar as regras no Firebase.
+- Lista de admins iniciais: existe em `firebase/firestore.rules` (função `adminsIniciais()`, a que vale) e em `src/admin-validacoes.ts` (`ADMINS_INICIAIS`, só para a interface). Altere as duas juntas; o `npm.cmd run test:data` avisa se ficarem diferentes. Só inclua e-mails de contas que já existem.
 
 node_modules contém bibliotecas instaladas; .expo contém cache; dist contém a saída de distribuição. Essas pastas não são telas e não devem ser editadas manualmente. O backup local preserva arquivos antigos e não entra no Git.
 
@@ -116,4 +129,10 @@ npm.cmd run typecheck
 npm.cmd run test:data
 ```
 
-Teste no celular e confira carregamento, erro e lista vazia. Login, cadastro, sessão e consulta dos pontos já funcionam; Mapa, Avaliar e Alertas ainda são áreas Em breve.
+Teste no celular e confira carregamento, erro e lista vazia.
+
+Se a alteração mexer em `firebase/firestore.rules`, publique as regras depois que a mudança for aprovada:
+
+```powershell
+firebase deploy --only firestore:rules
+```

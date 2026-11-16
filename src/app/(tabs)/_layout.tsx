@@ -46,6 +46,7 @@ export default function TabsLayout() {
             ),
           }} />
         ))}
+        <Tabs.Screen name="admin" options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, popToTopOnBlur: true }} />
       </Tabs>
     </StopsProvider>
   );
