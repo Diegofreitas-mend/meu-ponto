@@ -1,4 +1,4 @@
-﻿// Altere a apar├¬ncia das telas aqui. Cada bloco corresponde a uma tela.
+// Altere a apar├¬ncia das telas aqui. Cada bloco corresponde a uma tela.
 import { StyleSheet } from 'react-native';
 import { Brand, colors } from '@/tema';
 

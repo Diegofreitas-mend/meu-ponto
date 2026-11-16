@@ -51,47 +51,47 @@ function FormularioAvaliacao({ pontoId }: PropsFormulario) {
   const [nota, setNota] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
   const [descricao, setDescricao] = useState("");
-  const [verificando, setVerificando] = useState(true);
-  const [jaAvaliou, setJaAvaliou] = useState(false);
+  const [verificacao, setVerificacao] = useState<{
+    chave: string;
+    existe: boolean;
+    erro: string | null;
+  } | null>(null);
   const [enviado, setEnviado] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [erroVerificacao, setErroVerificacao] = useState<string | null>(null);
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [tentativa, setTentativa] = useState(0);
+  const usuarioId = user?.uid;
+  const chave = JSON.stringify([pontoId, usuarioId, tentativa]);
+  const atual = verificacao?.chave === chave ? verificacao : null;
+  const verificando = !!usuarioId && !atual;
+  const jaAvaliou = atual?.existe ?? false;
+  const erroVerificacao = usuarioId
+    ? atual?.erro
+    : "É necessário entrar na conta para avaliar este ponto.";
 
   useEffect(() => {
     let ativo = true;
 
-    if (!user) {
-      setVerificando(false);
-      setErroVerificacao(
-        "É necessário entrar na conta para avaliar este ponto.",
-      );
-      return;
-    }
+    if (!usuarioId) return;
 
-    setVerificando(true);
-    setErroVerificacao(null);
-
-    verificarAvaliacao(pontoId, user.uid)
+    verificarAvaliacao(pontoId, usuarioId)
       .then((existe) => {
-        if (ativo) setJaAvaliou(existe);
+        if (ativo) setVerificacao({ chave, existe, erro: null });
       })
       .catch(() => {
         if (ativo) {
-          setErroVerificacao(
-            "Não foi possível verificar se você já avaliou este ponto.",
-          );
+          setVerificacao({
+            chave,
+            existe: false,
+            erro: "Não foi possível verificar se você já avaliou este ponto.",
+          });
         }
-      })
-      .finally(() => {
-        if (ativo) setVerificando(false);
       });
 
     return () => {
       ativo = false;
     };
-  }, [pontoId, user, tentativa]);
+  }, [pontoId, usuarioId, chave]);
 
   function alternarTag(tag: string) {
     if (enviando) return;
@@ -210,7 +210,7 @@ function FormularioAvaliacao({ pontoId }: PropsFormulario) {
       const existe = await verificarAvaliacao(pontoId, user.uid);
 
       if (existe) {
-        setJaAvaliou(true);
+        setVerificacao({ chave, existe: true, erro: null });
         return;
       }
 

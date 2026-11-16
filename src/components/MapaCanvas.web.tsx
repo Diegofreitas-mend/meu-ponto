@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { createElement } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import type { MapaCanvasProps } from './MapaCanvas';
 import { mapStyles as styles } from '@/styles';
 import { Brand } from '@/tema';
@@ -21,8 +21,10 @@ export function MapaCanvas({ stops, selectedStop, region, onSelectStop }: MapaCa
         loading: 'lazy',
       })}
       {stops.length > 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.webPinsStrip}>
-          {stops.map(stop => {
+        <FlatList horizontal showsHorizontalScrollIndicator={false} style={styles.webPinsStrip}
+          data={stops}
+          keyExtractor={stop => stop.id}
+          renderItem={({ item: stop }) => {
             const active = selectedStop?.id === stop.id;
             return (
               <Pressable
@@ -36,8 +38,8 @@ export function MapaCanvas({ stops, selectedStop, region, onSelectStop }: MapaCa
                 <Text style={[styles.webPinText, active && styles.webPinTextSelected]}>{stop.name}</Text>
               </Pressable>
             );
-          })}
-        </ScrollView>
+          }}
+        />
       )}
     </View>
   );

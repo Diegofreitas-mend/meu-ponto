@@ -3,6 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Brand } from '@/tema';
+import { StopsProvider } from '@/pontos';
+import { useAuth } from '@/sessao';
 
 const tabs = [
   { name: 'inicio', label: 'Início', icon: 'home-outline' },
@@ -14,34 +16,37 @@ const tabs = [
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   return (
-    <Tabs screenOptions={{
-      headerShown: false,
-      sceneStyle: { backgroundColor: Brand.home.background },
-      tabBarActiveTintColor: Brand.colors.blue,
-      tabBarInactiveTintColor: Brand.home.textSecondary,
-      tabBarHideOnKeyboard: true,
-      tabBarLabelPosition: 'below-icon',
-      tabBarLabelStyle: { fontSize: 11, lineHeight: 16, fontWeight: '600' },
-      tabBarIconStyle: { height: 28 },
-      tabBarStyle: {
-        backgroundColor: Brand.home.background,
-        borderTopColor: Brand.home.cardBorder,
-        height: 76 + insets.bottom,
-        paddingTop: 8,
-        paddingBottom: Math.max(8, insets.bottom),
-      },
-    }}>
-      {tabs.map(tab => (
-        <Tabs.Screen key={tab.name} name={tab.name} options={{
-          title: tab.label,
-          tabBarAccessibilityLabel: tab.name === 'avaliacao' ? 'Adicionar avaliação' : tab.label,
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused && tab.name === 'inicio' ? 'home' : tab.icon}
-              size={size} color={typeof color === 'string' ? color : Brand.home.textSecondary} />
-          ),
-        }} />
-      ))}
-    </Tabs>
+    <StopsProvider key={user?.uid}>
+      <Tabs screenOptions={{
+        headerShown: false,
+        sceneStyle: { backgroundColor: Brand.home.background },
+        tabBarActiveTintColor: Brand.colors.blue,
+        tabBarInactiveTintColor: Brand.home.textSecondary,
+        tabBarHideOnKeyboard: true,
+        tabBarLabelPosition: 'below-icon',
+        tabBarLabelStyle: { fontSize: 11, lineHeight: 16, fontWeight: '600' },
+        tabBarIconStyle: { height: 28 },
+        tabBarStyle: {
+          backgroundColor: Brand.home.background,
+          borderTopColor: Brand.home.cardBorder,
+          height: 76 + insets.bottom,
+          paddingTop: 8,
+          paddingBottom: Math.max(8, insets.bottom),
+        },
+      }}>
+        {tabs.map(tab => (
+          <Tabs.Screen key={tab.name} name={tab.name} options={{
+            title: tab.label,
+            tabBarAccessibilityLabel: tab.name === 'avaliacao' ? 'Adicionar avaliação' : tab.label,
+            tabBarIcon: ({ color, size, focused }) => (
+              <Ionicons name={focused && tab.name === 'inicio' ? 'home' : tab.icon}
+                size={size} color={typeof color === 'string' ? color : Brand.home.textSecondary} />
+            ),
+          }} />
+        ))}
+      </Tabs>
+    </StopsProvider>
   );
 }
