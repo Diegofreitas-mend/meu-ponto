@@ -4,6 +4,7 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { getDatabase } from '@/firebase';
 import { parseStopDocument } from '@/validacoes';
 import type { BusStop } from '@/tipos';
+import { correspondeBusca, textoDoPonto } from '@/busca';
 
 export function subscribeStops(onData: (stops: BusStop[]) => void, onError: (error: Error) => void) {
   const publishedStops = query(collection(getDatabase(), 'stops'), where('published', '==', true));
@@ -21,7 +22,7 @@ export function subscribeStops(onData: (stops: BusStop[]) => void, onError: (err
 
 // 2. Entrega pontos, busca, carregamento e erros para a tela inicial.
 
-const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
 
 type PontosContexto = {
   allStops: BusStop[];
@@ -73,7 +74,7 @@ export function StopsProvider({ children }: { children: ReactNode }) {
 
   const indice = useMemo(() => allStops.map(stop => ({
     stop,
-    texto: normalize(`${stop.name} ${stop.address} ${stop.city} ${stop.tags.join(' ')}`),
+    texto: textoDoPonto(stop),
   })), [allStops]);
   const reload = useCallback(() => setRevision(value => value + 1), []);
 
@@ -89,9 +90,9 @@ export function useStops(query: string) {
   if (!contexto) throw new Error('useStops precisa de StopsProvider.');
   const { allStops, indice, loading, error, reload } = contexto;
   const stops = useMemo(() => {
-    const search = normalize(query);
+    const search = query.trim();
     if (!search) return allStops;
-    return indice.filter(item => item.texto.includes(search)).map(item => item.stop);
+    return indice.filter(item => correspondeBusca(item.texto, search)).map(item => item.stop);
   }, [allStops, indice, query]);
   return { stops, allStops, loading, error, total: stops.length, reload };
 }
